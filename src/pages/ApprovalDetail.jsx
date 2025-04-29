@@ -471,10 +471,26 @@ const ApprovalDetail = () => {
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
   const [saving, setSaving] = useState(false);
+  const [isCustomer, setIsCustomer] = useState(false);
   const approvalDecisionRef = useRef(null);
   const actionsMenuRef = useRef(null);
 
   useEffect(() => {
+    const checkUserRole = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const decodedToken = JSON.parse(atob(token.split('.')[1]));
+          const isCustomerUser = decodedToken.role === 'CUSTOMER';
+          setIsCustomer(isCustomerUser);
+        } catch (error) {
+          console.error('Error decoding token:', error);
+          setIsCustomer(false);
+        }
+      }
+    };
+    
+    checkUserRole();
     fetchProposalDetail();
   }, [id]);
 
@@ -1061,35 +1077,37 @@ const ApprovalDetail = () => {
                         </ProposalContent>
                         
                         {/* 승인요청 전송 버튼과 승인권자 수정 버튼을 함께 배치 */}
-                        <ApprovalButtonContainer>
-                          <ApprovalActionButton 
-                            secondary
-                            onClick={handleOpenEditApprovers}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                              <circle cx="9" cy="7" r="4"></circle>
-                              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                            </svg>
-                            승인권자 수정
-                          </ApprovalActionButton>
-                          <ApprovalActionButton 
-                            onClick={handleSendApproval} 
-                            disabled={
-                              sendingApproval || 
-                              (proposal.displayStatus !== ApprovalProposalStatus.DRAFT && !hasChanges)
-                            }
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M22 2L11 13"></path>
-                              <path d="M22 2L15 22L11 13L2 9L22 2z"></path>
-                            </svg>
-                            {sendingApproval ? '전송 중...' : (
-                              !proposal.lastSentAt ? '승인요청 전송' : '승인요청 재전송'
-                            )}
-                          </ApprovalActionButton>
-                        </ApprovalButtonContainer>
+                        {!isCustomer && (
+                          <ApprovalButtonContainer>
+                            <ApprovalActionButton 
+                              secondary
+                              onClick={handleOpenEditApprovers}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                              </svg>
+                              승인권자 수정
+                            </ApprovalActionButton>
+                            <ApprovalActionButton 
+                              onClick={handleSendApproval} 
+                              disabled={
+                                sendingApproval || 
+                                (proposal.displayStatus !== ApprovalProposalStatus.DRAFT && !hasChanges)
+                              }
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M22 2L11 13"></path>
+                                <path d="M22 2L15 22L11 13L2 9L22 2z"></path>
+                              </svg>
+                              {sendingApproval ? '전송 중...' : (
+                                !proposal.lastSentAt ? '승인요청 전송' : '승인요청 재전송'
+                              )}
+                            </ApprovalActionButton>
+                          </ApprovalButtonContainer>
+                        )}
                       </>
                     )}
                   </ProposalInfoSection>

@@ -21,9 +21,10 @@ const StageProgressColumn = styled.div`
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   padding: 20px 30px 20px 20px;
   max-height: none;
-  overflow-y: visible;
-  overflow-x: visible;
+  overflow: hidden;
   position: relative;
+  width: 100%;
+  box-sizing: border-box;
   
   /* 화면 너비가 좁을 때 너비 조정 */
   @media (max-width: 1024px) {
@@ -52,6 +53,9 @@ const StageProgressTimeline = styled.div`
   position: relative;
   padding: 0 10px;
   margin-top: 50px;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 `;
 
 const TimelineBar = styled.div`
@@ -81,11 +85,13 @@ const StageProgressList = styled.div`
   z-index: 2;
   display: flex;
   justify-content: space-between;
-  overflow-x: visible;
+  overflow-x: auto;
   padding: 0 20px;
+  width: 100%;
+  box-sizing: border-box;
+  
   /* 모바일 환경에서 스크롤 가능하도록 설정 */
   @media (max-width: 768px) {
-    overflow-x: auto;
     justify-content: flex-start;
     gap: 30px;
     padding-bottom: 10px;
@@ -105,12 +111,14 @@ const StageProgressItem = styled.div`
   flex-direction: column;
   align-items: center;
   width: 120px;
+  min-width: 120px;
   cursor: pointer;
   flex-shrink: 0;
   padding: 12px;
   border-radius: 12px;
   transition: all 0.2s ease-in-out;
   position: relative;
+  box-sizing: border-box;
 
   &:hover {
     background-color: rgba(59, 130, 246, 0.02);
@@ -186,6 +194,9 @@ const StageProgressInfo = styled.div`
   border: 1px solid #e2e8f0;
   border-bottom: 1px solid #e2e8f0;
   position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 
   &::after {
     content: '';
@@ -196,12 +207,20 @@ const StageProgressInfo = styled.div`
     height: 1px;
     background-color: #e2e8f0;
   }
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 `;
 
 const ProgressInfoItem = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 `;
 
 const ProgressInfoLabel = styled.div`
@@ -218,6 +237,10 @@ const ProgressInfoValue = styled.span`
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 
   small {
     font-size: 12px;
@@ -423,17 +446,36 @@ const ProjectStageProgress = ({
               isCompleted: false
             };
             
-            // currentProgress 값에 해당하는 단계 이름 찾기
-            const currentStageName = PROGRESS_STAGE_MAP[currentProgress] || '';
+            // 승인요청 상태에 따른 단계 상태 확인
+            let stageState = '대기';
+            if (stageStatus.totalApprovalCount > 0) {
+              if (stageStatus.approvedApprovalCount === stageStatus.totalApprovalCount) {
+                stageState = '완료';
+              } else if (stageStatus.approvedApprovalCount > 0 || stageStatus.progressRate > 0) {
+                stageState = '진행중';
+              }
+            } else {
+              // 승인요청이 없는 경우, position 값이 가장 작은 단계를 진행중으로 표시
+              const isFirstStage = progressList.every(otherStage => 
+                otherStage.position >= stage.position
+              );
+              if (isFirstStage) {
+                stageState = '진행중';
+              }
+            }
             
-            // 현재 단계인지 확인 (이름이 일치하는지)
-            const isCurrent = !stageStatus.isCompleted && stage.name === currentStageName;
+            const isCompleted = stageState === '완료';
+            const isInProgress = stageState === '진행중';
             
-            // 완료된 단계인지 확인 (이전 단계이거나 COMPLETED 상태인 경우)
-            const isCompleted = stageStatus.isCompleted || 
-              (currentProgress === 'COMPLETED') || 
-              (Object.keys(PROGRESS_STAGE_MAP).indexOf(currentProgress) > 
-               Object.keys(PROGRESS_STAGE_MAP).indexOf(Object.keys(PROGRESS_STAGE_MAP).find(key => PROGRESS_STAGE_MAP[key] === stage.name)));
+            // 현재 단계인지 확인 (진행중인 단계 중 가장 앞선 단계)
+            const isCurrent = isInProgress && 
+              !progressList.slice(0, index).some(prevStage => {
+                const prevStageStatus = progressStatus.progressList.find(
+                  status => status.progressId === prevStage.id
+                );
+                return prevStageStatus && 
+                  (prevStageStatus.approvedApprovalCount > 0 || prevStageStatus.progressRate > 0);
+              });
             
             const isViewing = index === currentStageIndex;
             
@@ -445,23 +487,21 @@ const ProjectStageProgress = ({
             >
               <StageProgressMarker 
                 completed={isCompleted}
-                current={isCurrent}
+                current={isInProgress}
                 viewing={isViewing}
               >
                 {isCompleted ? 
                   <FaCheck /> : 
-                  isCurrent ? <FaClock /> : index + 1
+                  isInProgress ? <FaClock /> : index + 1
                 }
               </StageProgressMarker>
               <StageProgressDetails>
                 <StageProgressName>{stage.name}</StageProgressName>
                 <StageProgressStatus 
                   isCompleted={isCompleted}
-                  isCurrent={isCurrent}
+                  isCurrent={isInProgress}
                 >
-                  {isCompleted ? '완료' : 
-                   isCurrent ? '진행중' : 
-                   '대기'}
+                  {stageState}
                 </StageProgressStatus>
               </StageProgressDetails>
             </StageProgressItem>
@@ -700,6 +740,9 @@ const StageIndicator = styled.span`
 // 추가된 스타일 컴포넌트
 const ApprovalRequestContainer = styled.div`
   margin-top: 0;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 `;
 
 // 스타일 컴포넌트 추가

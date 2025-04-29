@@ -65,17 +65,36 @@ const ProjectDetail = () => {
   const [isIncreasing, setIsIncreasing] = useState(false);
 
   useEffect(() => {
-    fetchProjectDetail();
-    fetchProjectPosts();
-    fetchProjectProgress();
-    fetchApprovalRequests();
-    fetchProjectOverallProgress();
-    fetchProgressStatus();
+    const loadData = async () => {
+      try {
+        // 기본 데이터 로드
+        await Promise.all([
+          fetchProjectDetail(),
+          fetchProjectPosts(),
+          fetchProjectProgress(),
+          fetchApprovalRequests()
+        ]);
+        
+        // 기본 데이터 로드 후 진행률 계산
+        await Promise.all([
+          fetchProjectOverallProgress(),
+          fetchProgressStatus()
+        ]);
+      } catch (error) {
+        console.error('데이터 로딩 중 오류 발생:', error);
+      }
+    };
+
+    loadData();
 
     // 30초마다 데이터 업데이트
     const updateInterval = setInterval(() => {
-      fetchProjectOverallProgress();
-      fetchProgressStatus();
+      Promise.all([
+        fetchProjectOverallProgress(),
+        fetchProgressStatus()
+      ]).catch(error => {
+        console.error('주기적 데이터 업데이트 중 오류 발생:', error);
+      });
     }, 30000);
 
     return () => {
@@ -85,11 +104,10 @@ const ProjectDetail = () => {
 
   // 현재 단계가 변경될 때마다 진행률 다시 계산
   useEffect(() => {
-    if (progressList.length > 0) {
+    if (progressList.length > 0 && approvalRequests.length > 0) {
       fetchProjectOverallProgress();
-      fetchProgressStatus();
     }
-  }, [currentStageIndex]);
+  }, [currentStageIndex, progressList, approvalRequests]);
 
   // 승인요청 상태가 변경될 때마다 진행률 다시 계산
   useEffect(() => {
@@ -102,10 +120,12 @@ const ProjectDetail = () => {
   // 진행률 데이터 업데이트 함수
   const updateProgressData = async () => {
     try {
-      await Promise.all([
-        fetchProjectOverallProgress(),
-        fetchProgressStatus()
-      ]);
+      if (approvalRequests.length > 0) {
+        await Promise.all([
+          fetchProjectOverallProgress(),
+          fetchProgressStatus()
+        ]);
+      }
     } catch (error) {
       console.error('진행률 데이터 업데이트 중 오류 발생:', error);
     }
@@ -500,6 +520,12 @@ const ProjectDetail = () => {
   // 프로젝트 진행률 조회
   const fetchProjectOverallProgress = async () => {
     try {
+      // 승인요청과 진행단계 데이터가 모두 있는지 확인
+      if (!approvalRequests.length || !progressList.length) {
+        console.log('승인요청 또는 진행단계 데이터가 없습니다.');
+        return;
+      }
+
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_ENDPOINTS.PROJECT_DETAIL(id)}/progress/overall-progress`, {
         headers: {
@@ -530,28 +556,36 @@ const ProjectDetail = () => {
       }
       
       // 진행률 데이터 업데이트
-      setProjectProgress({
+      setProjectProgress(prev => ({
+        ...prev,
         totalStageCount: data.totalStageCount || 0,
         completedStageCount: data.completedStageCount || 0,
         currentStageProgressRate: currentStageProgress,
         overallProgressRate: data.overallProgressRate || 0
-      });
+      }));
       
     } catch (error) {
       console.error('프로젝트 진행률 조회 중 오류 발생:', error);
       // 에러 발생 시 기본값 설정
-      setProjectProgress({
+      setProjectProgress(prev => ({
+        ...prev,
         totalStageCount: 0,
         completedStageCount: 0,
         currentStageProgressRate: 0,
         overallProgressRate: 0
-      });
+      }));
     }
   };
 
   // 프로젝트 단계별 승인요청 진척도 조회
   const fetchProgressStatus = async () => {
     try {
+      // 승인요청 데이터가 있는지 확인
+      if (!approvalRequests.length) {
+        console.log('승인요청 데이터가 없습니다.');
+        return;
+      }
+
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_ENDPOINTS.PROJECT_DETAIL(id)}/progress/status`, {
         headers: {
@@ -568,11 +602,23 @@ const ProjectDetail = () => {
       console.log('단계별 진척도:', data);
 
       // 각 단계의 완료 여부 계산
-      const updatedProgressList = data.progressList.map(progress => ({
-        ...progress,
-        isCompleted: progress.totalApprovalCount > 0 && 
-                    progress.approvedApprovalCount === progress.totalApprovalCount
-      }));
+      const updatedProgressList = data.progressList.map(progress => {
+        // 현재 단계의 승인요청들을 필터링
+        const stageApprovals = approvalRequests.filter(
+          req => req.stageId === progress.progressId
+        );
+        
+        // 최종 승인된 승인요청 수 계산
+        const finalApprovedCount = stageApprovals.filter(
+          req => req.approvalProposalStatus === ApprovalProposalStatus.FINAL_APPROVED
+        ).length;
+        
+        return {
+          ...progress,
+          isCompleted: stageApprovals.length > 0 && 
+                      finalApprovedCount === stageApprovals.length
+        };
+      });
 
       setProgressStatus({
         ...data,
@@ -619,9 +665,9 @@ const ProjectDetail = () => {
         throw new Error('단계 승급에 실패했습니다.');
       }
 
-      // 승급 후 데이터 새로고침 순서 변경
+      // 승급 후 데이터 새로고침
       await Promise.all([
-        fetchProjectDetail(), // 프로젝트 정보 다시 가져오기
+        fetchProjectDetail(),
         fetchProjectProgress(),
         fetchProjectOverallProgress(),
         fetchProgressStatus()
@@ -1008,17 +1054,31 @@ const ReplyButton = styled.button`
 const StageSection = styled.div`
   background: transparent;
   width: 100%;
-  overflow-x: hidden;
+  overflow: hidden;
   box-sizing: border-box;
   padding: 0;
+  margin-bottom: 24px;
 `;
 
-const StageGrid = styled.div`
+const StageSplitLayout = styled.div`
   display: flex;
-  justify-content: center;
-  align-items: center;
+  gap: 24px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  flex-direction: column;
   width: 100%;
-  height: 600px;
+  overflow: hidden;
+`;
+
+const StageContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1px;
+  padding-top: 20px;
+  box-sizing: border-box;
   overflow: hidden;
 `;
 
@@ -1067,6 +1127,10 @@ const StageHeader = styled.div`
   padding: 0;
   border-bottom: 1px solid #e2e8f0;
   padding-bottom: 12px;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const StageEditActions = styled.div`
@@ -1344,17 +1408,6 @@ const EmptyStateDescription = styled.p`
   line-height: 1.5;
 `;
 
-const StageContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 1px;
-  padding-top: 20px;
-  box-sizing: border-box;
-`;
-
 const StageTitle = styled.h3`
   margin: 0;
   padding: 5px;
@@ -1363,6 +1416,10 @@ const StageTitle = styled.h3`
   font-size: 16px;
   font-weight: 600;
   color: #1e293b;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   
   &::before {
     content: '${props => props.title || ''}';
@@ -1382,14 +1439,6 @@ const SectionHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-`;
-
-const StageSplitLayout = styled.div`
-  display: flex;
-  gap: 24px;
-  margin-top: 10px;
-  margin-bottom: 10px;
-  flex-direction: column;
 `;
 
 // 모달 관련 스타일 컴포넌트 추가
