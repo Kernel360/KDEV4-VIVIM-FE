@@ -16,6 +16,7 @@ import ProjectDetail from './pages/ProjectDetail';
 import UserEdit from './pages/UserEdit';
 import AuditLog from './pages/AuditLog';
 import ApprovalDetail from './pages/ApprovalDetail';
+
 import UserProjectList from './pages/UserProjectList';
 import ProjectPostCreate from './pages/ProjectPostCreate';
 import ProjectPostDetail from './pages/ProjectPostDetail';
@@ -24,6 +25,8 @@ import AdminInquiry from './pages/AdminInquiry';
 import AdminInquiryList from './pages/AdminInquiryList';
 import AdminInquiryDetail from './pages/AdminInquiryDetail';
 import AdminInquiryEdit from './pages/AdminInquiryEdit';
+import { setNavigate } from './utils/axiosInstance';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 const AppContent = () => {
   const navigate = useNavigate();
@@ -60,9 +63,11 @@ const AppContent = () => {
 
 const App = () => {
   return (
-    <Router>
-      <AppContent />
-    </Router>
+    <NotificationProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </NotificationProvider>
   );
 };
 

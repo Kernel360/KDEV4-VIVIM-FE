@@ -1,11 +1,11 @@
-export const API_BASE_URL = 'https://localhost/api';
-// export const API_BASE_URL = 'https://dev.vivim.co.kr/api';
+// export const API_BASE_URL = 'https://localhost/api';
+export const API_BASE_URL = 'https://dev.vivim.co.kr/api';
  
 export const API_ENDPOINTS = {
   // Auth
   LOGIN: `${API_BASE_URL}/auth/login`,
   USER_INFO: `${API_BASE_URL}/auth/user`,
-  
+
   // Users
   USERS: `${API_BASE_URL}/users`,
   USER_DETAIL: (id) => `${API_BASE_URL}/users/${id}`,
@@ -76,6 +76,12 @@ export const API_ENDPOINTS = {
   ADMIN_INQUIRY_DETAIL: (id) => `${API_BASE_URL}/admininquiry/${id}`,
   ADMIN_INQUIRY_EDIT: (id) => `${API_BASE_URL}/admininquiry/${id}`,
   ADMIN_INQUIRY_CREATE: `${API_BASE_URL}/admininquiry`,
+
+  NOTIFICATIONS: {
+    LIST: `${API_BASE_URL}/notifications`,
+    SUBSCRIBE: `${API_BASE_URL}/notifications/subscribe`,
+    READ: `${API_BASE_URL}/notifications/read`,
+  },
 
   // Posts
   POST: {

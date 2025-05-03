@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../utils/axiosInstance';
@@ -41,11 +41,58 @@ const Navbar = ({ activeMenuItem, handleMenuClick }) => {
     item => item.showFor === 'all' || (isAdmin && item.showFor === 'admin')
   );
 
+  const handleLogout = async () => {
+    try {
+      console.log('로그아웃 시작', {
+        timestamp: new Date().toISOString()
+      });
+
+      const refreshToken = localStorage.getItem('refreshToken');
+      await axiosInstance.post(API_ENDPOINTS.AUTH_LOGOUT, { refreshToken });
+
+      // SSE 연결 종료
+      console.log('SSE 연결 종료 시도', {
+        timestamp: new Date().toISOString()
+      });
+      disconnectSSE();
+
+      // localStorage에서 토큰 제거
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+
+      console.log('로그아웃 완료, 로그인 페이지로 이동', {
+        timestamp: new Date().toISOString()
+      });
+
+      // 로그인 페이지로 이동
+      navigate('/');
+    } catch (error) {
+      console.error('로그아웃 실패:', error);
+
+      // SSE 연결 종료
+      console.log('로그아웃 실패 시 SSE 연결 종료 시도', {
+        timestamp: new Date().toISOString(),
+        error: error.message
+      });
+      disconnectSSE();
+
+      // 에러가 발생해도 토큰은 제거하고 로그인 페이지로 이동
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      navigate('/');
+    }
+  };
+
   const onClickItem = item => {
     handleMenuClick?.(item.name);
     navigate(item.path);
     setIsMobileMenuOpen(false);
   };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+  const filteredNotifications = showReadNotifications
+    ? notifications.filter(n => n.read)
+    : notifications.filter(n => !n.read);
 
   return (
     <NavbarContainer>
@@ -73,16 +120,60 @@ const Navbar = ({ activeMenuItem, handleMenuClick }) => {
         </LeftSection>
 
         <UserSection>
-          <NotificationIcon onClick={() => setShowNotifications(v => !v)}>
-            <BellImage src="/bell.png" alt="notifications" />
-          </NotificationIcon>
-          {showNotifications && (
-            <NotificationPanel>
-              <NotificationHeader>알림</NotificationHeader>
-              <NotificationEmpty>최근 알림이 없습니다</NotificationEmpty>
-            </NotificationPanel>
-          )}
-
+          <NotificationWrapper ref={notificationPanelRef}>
+            <NotificationIcon onClick={() => setShowNotifications(!showNotifications)}>
+              <BellImage src="/bell.png" alt="notifications" />
+              {unreadCount > 0 && (
+                <NotificationBadge>
+                  {unreadCount}
+                </NotificationBadge>
+              )}
+            </NotificationIcon>
+            {showNotifications && (
+              <NotificationPanel>
+                <NotificationHeader>
+                  <NotificationTitle>알림</NotificationTitle>
+                  <NotificationFilters>
+                    <FilterButton
+                      active={!showReadNotifications}
+                      onClick={() => setShowReadNotifications(false)}
+                    >
+                      안읽은 알림 ({notifications.filter(n => !n.read).length})
+                    </FilterButton>
+                    <FilterButton
+                      active={showReadNotifications}
+                      onClick={() => setShowReadNotifications(true)}
+                    >
+                      읽은 알림 ({notifications.filter(n => n.read).length})
+                    </FilterButton>
+                  </NotificationFilters>
+                </NotificationHeader>
+                <NotificationList>
+                  {filteredNotifications.length > 0 ? (
+                    filteredNotifications.map((notification) => (
+                      <NotificationItem
+                        key={notification.id}
+                        unread={!notification.read}
+                        onClick={() => handleNotificationClick(notification)}
+                      >
+                        <NotificationContent>
+                          <NotificationTitle>{notification.title}</NotificationTitle>
+                          <NotificationText>{notification.content}</NotificationText>
+                          <NotificationTime>
+                            {new Date(notification.createdAt).toLocaleString()}
+                          </NotificationTime>
+                        </NotificationContent>
+                      </NotificationItem>
+                    ))
+                  ) : (
+                    <NotificationEmpty>
+                      {showReadNotifications ? '읽은 알림이 없습니다' : '안읽은 알림이 없습니다'}
+                    </NotificationEmpty>
+                  )}
+                </NotificationList>
+              </NotificationPanel>
+            )}
+          </NotificationWrapper>
           {userInfo && (
             <UserInfo>
               <UserName onClick={() => navigate(`/user-edit/${userInfo.id}`)}>
@@ -132,15 +223,54 @@ const HamburgerMenu = styled.div`
   }
 `;
 
-// Update NavList for mobile
-const NavList = styled.div`
+const NavbarContainer = styled.nav`
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+`;
+
+const NavContent = styled.div`
   display: flex;
-  gap: 32px;
+  justify-content: space-between;
   align-items: center;
-  height: 100%;
+  padding: 0 2rem;
+  height: 64px;
+  max-width: 1200px;
+  margin: 0 auto;
+`;
+
+const LeftSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+`;
+
+const LogoContainer = styled.div`
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+`;
+
+const LogoImage = styled.img`
+  height: 40px;
+  width: auto;
+`;
+
+const NavList = styled.ul`
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 1.5rem;
 
   @media (max-width: 768px) {
-    position: fixed;
+    display: ${props => props.isMobile ? 'flex' : 'none'};
+    flex-direction: column;
+    position: absolute;
     top: 64px;
     left: ${props => props.$isMobile ? '0' : '-100%'};
     transform: none;
@@ -152,16 +282,32 @@ const NavList = styled.div`
     gap: 20px;
     transition: left 0.3s ease-in-out;
     z-index: 1000;
+    left: 0;
+    right: 0;
+    background-color: white;
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 `;
 
-// Update UserSection
+const NavItem = styled.li`
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  color: ${props => props.active ? '#2E7D32' : '#666'};
+  font-weight: ${props => props.active ? '600' : '400'};
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: #f5f5f5;
+    color: #2E7D32;
+  }
+`;
+
 const UserSection = styled.div`
   display: flex;
   align-items: center;
-  gap: 24px;
-  margin-left: auto;
-  padding-right: 24px;
+  gap: 1.5rem;
 `;
 
 // Update NavItem
@@ -189,177 +335,164 @@ const NavItem = styled.div`
     color: #000;
   }
 `;
+const NotificationWrapper = styled.div`
+  position: relative;
+`;
 
 const NotificationIcon = styled.div`
   cursor: pointer;
-  width: 24px;
-  height: 24px;
+  position: relative;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #f5f5f5;
+  }
+`;
+
+const NotificationBadge = styled.div`
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: #ff4444;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0 4px;
+`;
+
+const BellImage = styled.img`
+  width: 24px;
+  height: 24px;
 `;
 
 const NotificationPanel = styled.div`
   position: absolute;
-  top: 100%;
+  top: calc(100% + 8px);
   right: 0;
   width: 320px;
-  background: white;
+  background-color: white;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  margin-top: 8px;
   z-index: 1000;
 `;
 
 const NotificationHeader = styled.div`
-  padding: 16px;
-  font-size: 14px;
-  font-weight: 600;
+  padding: 1rem;
   border-bottom: 1px solid #eee;
 `;
 
+const NotificationTitle = styled.div`
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #333;
+`;
+
+const NotificationFilters = styled.div`
+  display: flex;
+  gap: 0.5rem;
+`;
+
+const FilterButton = styled.button`
+  padding: 0.25rem 0.75rem;
+  border: 1px solid ${props => props.active ? '#2E7D32' : '#ddd'};
+  border-radius: 4px;
+  background-color: ${props => props.active ? '#2E7D32' : 'white'};
+  color: ${props => props.active ? 'white' : '#666'};
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: ${props => props.active ? '#2E7D32' : '#f5f5f5'};
+  }
+`;
+
+const NotificationList = styled.div`
+  max-height: 400px;
+  overflow-y: auto;
+`;
+
+const NotificationItem = styled.div`
+  padding: 1rem;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  background-color: ${props => props.unread ? '#f8f9fa' : 'white'};
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #f5f5f5;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const NotificationContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`;
+
+const NotificationText = styled.div`
+  font-size: 0.875rem;
+  color: #666;
+`;
+
+const NotificationTime = styled.div`
+  font-size: 0.75rem;
+  color: #999;
+  margin-top: 0.25rem;
+`;
+
 const NotificationEmpty = styled.div`
-  padding: 32px 16px;
+  padding: 2rem;
   text-align: center;
   color: #666;
-  font-size: 14px;
-`;
-
-// Update or add these styled components
-const CompanyInfo = styled.div`
-  font-size: 13px;
-  color: #666;
-`;
-
-// Update NavbarContainer and add NavContent
-const NavbarContainer = styled.nav`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 64px;
-  background: white;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  z-index: 1000;
-`;
-
-const NavContent = styled.div`
-  height: 100%;
-  display: flex;
-  align-items: center;
-`;
-
-const LeftSection = styled.div`
-  display: flex;
-  align-items: center;
-`;
-
-const LogoContainer = styled.div`
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  height: 100%;
-  padding: 0 16px;
-`;
-
-const LogoImage = styled.img`
-  height: 24px;
-  object-fit: contain;
-`;
-
-const LogoutButtonContainer = styled.div`
-  display: flex;
-  margin-left: auto;
-`;
-
-const Logo = styled.div`
-  font-size: 20px;
-  font-weight: 700;
-  color: #2E7D32;
-  cursor: pointer;
-`;
-
-const MenuItems = styled.div`
-  display: flex;
-  gap: 24px;
-`;
-
-const MenuItem = styled.div`
-  font-size: 14px;
-  font-weight: ${props => props.active ? '600' : '400'};
-  color: ${props => props.active ? '#2E7D32' : '#64748b'};
-  cursor: pointer;
-  padding: 8px 0;
-  border-bottom: ${props => props.active ? '2px solid #2E7D32' : 'none'};
-  
-  &:hover {
-    color: #2E7D32;
-  }
+  font-size: 0.875rem;
 `;
 
 const UserInfo = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 2px;
   align-items: flex-end;
 `;
 
 const UserName = styled.div`
-  font-size: 14px;
-  font-weight: 500;
-  color: #000;
+  font-weight: 600;
   cursor: pointer;
+  color: #333;
 
   &:hover {
-    text-decoration: underline;
+    color: #2E7D32;
   }
 `;
 
-const CompanyName = styled.div`
-  font-size: 12px;
-  color: #64748b;
-`;
-
-const UserAvatar = styled.div`
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background-color: #e2e8f0;
-`;
-
-const UserEmail = styled.div`
-  font-size: 12px;
-  color: #64748b;
-`;
-
-const LoginButton = styled.button`
-  padding: 8px 16px;
-  background: #2E7D32;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  
-  &:hover {
-    background: #1B5E20;
-  }
-`;
-
-// Add styled component for logout button
-const LogoutButton = styled.button`
-  padding: 6px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: white;
+const CompanyInfo = styled.div`
+  font-size: 0.875rem;
   color: #666;
-  font-size: 13px;
+`;
+
+const LogoutButton = styled.button`
+  padding: 0.5rem 1rem;
+  background-color: #f5f5f5;
+  border: none;
+  border-radius: 4px;
+  color: #666;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
 
   &:hover {
-    background: #f5f5f5;
-    border-color: #ccc;
+    background-color: #e0e0e0;
+    color: #333;
   }
 `;
 
@@ -375,3 +508,5 @@ const BellImage = styled.img`
     opacity: 1;
   }
 `;
+
+export default Navbar;
