@@ -76,6 +76,12 @@ export const API_ENDPOINTS = {
   ADMIN_INQUIRY_DETAIL: (id) => `${API_BASE_URL}/admininquiry/${id}`,
   ADMIN_INQUIRY_EDIT: (id) => `${API_BASE_URL}/admininquiry/${id}`,
   ADMIN_INQUIRY_CREATE: `${API_BASE_URL}/admininquiry`,
+  ADMIN_INQUIRY_DELETE: (id) => `${API_BASE_URL}/admininquiry/${id}/delete`,
+  ADMIN_INQUIRY_COMPLETE: (id) => `${API_BASE_URL}/admininquiry/${id}/complete`,
+  ADMIN_INQUIRY_COMMENTS: (id) => `${API_BASE_URL}/admininquiry/${id}/comment`,
+  ADMIN_INQUIRY_COMMENT_EDIT: (id, commentId) => `${API_BASE_URL}/admininquiry/${id}/comment/${commentId}`,
+  ADMIN_INQUIRY_COMMENT_DELETE: (id, commentId) => `${API_BASE_URL}/admininquiry/${id}/comment/${commentId}/delete`,
+  ADMIN_INQUIRY_COMMENT: (id) => `${API_BASE_URL}/admininquiry/${id}/comment`,
 
   NOTIFICATIONS: {
     LIST: `${API_BASE_URL}/notifications`,

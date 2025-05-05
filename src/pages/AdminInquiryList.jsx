@@ -26,6 +26,7 @@ const AdminInquiryList = () => {
 
   const fetchInquiries = async () => {
     try {
+
       const { data } = await axiosInstance.get(
         isAdmin ? API_ENDPOINTS.ADMIN_INQUIRY_LIST : API_ENDPOINTS.USER_INQUIRY_LIST
       );

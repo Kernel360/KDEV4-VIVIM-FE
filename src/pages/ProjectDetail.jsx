@@ -848,12 +848,17 @@ const ProjectDetail = () => {
                                 </tr>
                               ) : (
                                 posts
-                                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                                .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
                                 .reduce((acc, post) => {
                                   if (!post.parentId) {
                                     acc.push(post);
                                     const replies = posts.filter(reply => reply.parentId === post.postId);
                                     acc.push(...replies);
+                                    // 대댓글 추가
+                                    replies.forEach(reply => {
+                                      const nestedReplies = posts.filter(nestedReply => nestedReply.parentId === reply.postId);
+                                      acc.push(...nestedReplies);
+                                    });
                                   }
                                   return acc;
                                 }, [])
@@ -872,6 +877,21 @@ const ProjectDetail = () => {
                                           e.stopPropagation();
                                           navigate(`/project/${id}/post/create`, {
                                             state: { parentPost: post }
+                                          });
+                                        }}>
+                                          답글
+                                        </ReplyButton>
+                                      )}
+                                      {post.parentId && (
+                                        <ReplyButton onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigate(`/project/${id}/post/create`, {
+                                            state: { 
+                                              parentPost: {
+                                                ...post,
+                                                parentId: post.parentId // 대댓글의 부모를 root로 설정
+                                              }
+                                            }
                                           });
                                         }}>
                                           답글

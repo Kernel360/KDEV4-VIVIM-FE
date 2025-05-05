@@ -112,9 +112,29 @@ const AdminInquiryDetail = () => {
     }
   };
 
-  const handleDeleteComment = (comment) => {
-    // TODO: 삭제 기능 구현
-    console.log('Delete comment:', comment);
+  const handleDeleteComment = async (comment) => {
+    if (!window.confirm('정말로 이 답변을 삭제하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(API_ENDPOINTS.ADMIN_INQUIRY_COMMENT_DELETE(id, comment.id), {
+        method: 'PATCH',
+        headers: {
+          'Authorization': token
+        }
+      });
+
+      if (response.ok) {
+        alert('답변이 삭제되었습니다.');
+        window.location.reload();
+      } else {
+        throw new Error('답변 삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      alert('답변 삭제 중 오류가 발생했습니다.');
+    }
   };
 
   const handleEditInquiry = () => {
@@ -193,7 +213,7 @@ const AdminInquiryDetail = () => {
                   }).replace(/\. /g, '.').slice(0, -1)}
                 </InfoValue>
               </InfoItem>
-              {isAdmin && (
+              {isAdmin && comments.length > 0 && (
                 <InfoItem style={{ marginLeft: 'auto' }}>
                   <CompleteButton 
                     onClick={handleCompleteAnswer}

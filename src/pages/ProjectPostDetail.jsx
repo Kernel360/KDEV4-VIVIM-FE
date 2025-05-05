@@ -232,6 +232,11 @@ const ProjectPostDetail = () => {
     try {
       const token = localStorage.getItem('token');
       const parentId = parentComment ? (parentComment.parentId === null ? parentComment.commentId : parentComment.parentId) : null;
+      
+      // 부모 댓글이 있는 경우 해시태그 추가
+      const content = parentComment 
+        ? `@${parentComment.creatorName} ${commentContent}`
+        : commentContent;
 
       const response = await fetch(`${API_BASE_URL}/posts/${postId}/comments`, {
         method: 'POST',
@@ -240,7 +245,7 @@ const ProjectPostDetail = () => {
           'Authorization': token
         },
         body: JSON.stringify({
-          content: commentContent,
+          content: content,
           parentId: parentId
         })
       });
@@ -295,6 +300,9 @@ const ProjectPostDetail = () => {
           <LoadingMessage>데이터를 불러오는 중...</LoadingMessage>
         ) : post ? (
           <ContentContainer>
+            <BackButton onClick={() => navigate(`/project/${projectId}`)}>
+              ← 뒤로가기
+            </BackButton>
             <PostContainer>
               <PostHeader>
                 <HeaderContent>
@@ -488,20 +496,21 @@ const ProjectPostDetail = () => {
                         {replyingToId === parentComment.commentId && (
                           <div style={{ marginLeft: '24px' }}>
                             <FormContainer onSubmit={(e) => handleCommentSubmit(e, parentComment)}>
-                            <CommentInput
-                              value={commentContent}
-                              onChange={(e) => setCommentContent(e.target.value)}
-                              maxLength={1000}
-                            />
-                            <CharacterCount>
-                              {commentContent.length}/1000
-                            </CharacterCount>
-                            <ButtonContainer>
-                              <SubmitButton type="submit">
-                                답글 작성
-                              </SubmitButton>
-                            </ButtonContainer>
-                          </FormContainer>
+                              <CommentInput
+                                value={commentContent}
+                                onChange={(e) => setCommentContent(e.target.value)}
+                                maxLength={1000}
+                                placeholder={`@${parentComment.creatorName}님에게 답글 작성...`}
+                              />
+                              <CharacterCount>
+                                {commentContent.length}/1000
+                              </CharacterCount>
+                              <ButtonContainer>
+                                <SubmitButton type="submit">
+                                  답글 작성
+                                </SubmitButton>
+                              </ButtonContainer>
+                            </FormContainer>
                           </div>
                         )}
 
@@ -574,6 +583,7 @@ const ProjectPostDetail = () => {
                                     value={commentContent}
                                     onChange={(e) => setCommentContent(e.target.value)}
                                     maxLength={1000}
+                                    placeholder={`@${childComment.creatorName}님에게 답글 작성...`}
                                   />
                                   <CharacterCount>
                                     {commentContent.length}/1000
@@ -1143,6 +1153,28 @@ const ResponseResult = styled.div`
   font-size: 14px;
   color: #1e293b;
   font-weight: 500;
+`;
+
+const BackButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #64748b;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 4px;
+  width: fit-content;
+
+  &:hover {
+    background: #f8fafc;
+    color: #1e293b;
+    border-color: #cbd5e1;
+  }
 `;
 
 export default ProjectPostDetail;

@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import Navbar from '../components/Navbar';
 import { API_ENDPOINTS } from '../config/api';
-import axiosInstance from '../utils/axiosInstance';
 
 
 
@@ -22,6 +21,7 @@ const ProjectPostCreate = () => {
   const [loading, setLoading] = useState(false);
   const [linkTitle, setLinkTitle] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  const [linkUrlError, setLinkUrlError] = useState('');
   const [files, setFiles] = useState([]);
   const [fileError, setFileError] = useState('');
   const [links, setLinks] = useState([]);
@@ -39,6 +39,12 @@ const ProjectPostCreate = () => {
   // 파일 크기 제한 상수 추가 (10MB in bytes)
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+  useEffect(() => {
+    if (parentPost) {
+      console.log('parentPost 데이터:', parentPost);
+    }
+  }, [parentPost]);
+
   const handleFileDelete = (indexToDelete) => {
     setFiles(prevFiles => prevFiles.filter((_, index) => index !== indexToDelete));
   };
@@ -55,69 +61,147 @@ const ProjectPostCreate = () => {
       return;
     }
 
-    setFiles(selectedFiles);
+    // 기존 파일들과 새로 선택한 파일들을 합침
+    setFiles(prevFiles => [...prevFiles, ...selectedFiles]);
+    e.target.value = ''; // 파일 선택 초기화
   };
+
+  // URL 형식 검증 함수
+  const isValidUrl = (url) => {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   // 링크 추가 함수
-const handleAddLink = () => {
-  if (linkTitle && linkUrl) {
+  const handleAddLink = () => {
+    if (!linkTitle || !linkUrl) {
+      return;
+    }
+
+    if (!isValidUrl(linkUrl)) {
+      setLinkUrlError('올바른 URL 형식이 아닙니다. (예: https://www.example.com)');
+      return;
+    }
+
     setLinks(prevLinks => [...prevLinks, { title: linkTitle, url: linkUrl }]);
     setLinkTitle('');
     setLinkUrl('');
-  }
-};
+    setLinkUrlError('');
+  };
 
-// 링크 삭제 함수
-const handleLinkDelete = (indexToDelete) => {
-  setLinks(prevLinks => prevLinks.filter((_, index) => index !== indexToDelete));
-};
+  // 링크 삭제 함수
+  const handleLinkDelete = (indexToDelete) => {
+    setLinks(prevLinks => prevLinks.filter((_, index) => index !== indexToDelete));
+  };
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    const token = localStorage.getItem('token');
+    setLoading(true); // 로딩 상태 시작
 
     try {
       // 1. 게시글 생성
-      const { data: createdPostId } = await axiosInstance.post(API_ENDPOINTS.PROJECT_POSTS(projectId), {
-        title,
-        content,
-        projectPostStatus: postStatus,
-        parentId: parentPost ? (parentPost.parentId === null ? parentPost.postId : parentPost.parentId) : null,
-        links: links.map(link => ({
-          title: link.title,
-          url: link.url
-        }))
+      const postResponse = await fetch(API_ENDPOINTS.PROJECT_POSTS(projectId), {
+        method: 'POST',
+        headers: {
+          'Authorization': token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: parentPost ? `[Reply : ${parentPost.title.replace(/\[Reply\s*:\s*.*?\]\s*-\s*/, '')}] - ${title}` : title,
+          content,
+          projectPostStatus: postStatus,
+          parentId: parentPost ? (parentPost.parentId === null ? parentPost.postId : parentPost.parentId) : null,
+          links: links.map(link => ({
+            title: link.title,
+            url: link.url
+          }))
+        })
       });
 
-      // 2. 파일 업로드 처리
+      if (!postResponse.ok) {
+        throw new Error('게시글 생성 실패');
+      }
+
+      const postData = await postResponse.json();
+      const createdPostId = postData;
+
+      // 2. 파일 업로드 처리 (동기적으로)
       if (files.length > 0) {
-        for (const file of files) {
+        const uploadPromises = files.map(async (file) => {
           if (file.size > MAX_FILE_SIZE) {
             throw new Error(`파일 크기 제한 초과: ${file.name}`);
           }
 
           // presigned URL 요청
-          const { data: { preSignedUrl, fileId } } = await axiosInstance.post(API_ENDPOINTS.PROJECT_POST_FILE(projectId, createdPostId), {
-            fileName: file.name,
-            fileSize: file.size,
-            contentType: file.type
+          const presignedResponse = await fetch(API_ENDPOINTS.PROJECT_POST_FILE(projectId, createdPostId), {
+            method: 'POST',
+            headers: {
+              'Authorization': token,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              fileName: file.name,
+              fileSize: file.size,
+              contentType: file.type
+            })
           });
 
+          if (!presignedResponse.ok) {
+            throw new Error(`Presigned URL 요청 실패: ${file.name}`);
+          }
+
+          const { preSignedUrl, fileId } = await presignedResponse.json();
+
           // S3에 파일 업로드
-          await fetch(preSignedUrl, {
+          const uploadResponse = await fetch(preSignedUrl, {
             method: 'PUT',
             body: file,
             headers: {
               'Content-Type': file.type
             }
           });
+
+          if (!uploadResponse.ok) {
+            throw new Error(`파일 업로드 실패: ${file.name}`);
+          }
+        });
+
+        // 모든 파일 업로드가 완료될 때까지 대기
+        await Promise.all(uploadPromises);
+      }
+
+      // 3. 링크 업로드 처리
+      if (links.length > 0) {
+        for (const link of links) {
+          const linkResponse = await fetch(API_ENDPOINTS.PROJECT_POST_LINK(projectId, createdPostId), {
+            method: 'POST',
+            headers: {
+              'Authorization': token,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              title: link.title,
+              url: link.url
+            })
+          });
+
+          if (!linkResponse.ok) {
+            throw new Error(`링크 업로드 실패: ${link.title}`);
+          }
         }
       }
 
-      setLoading(false);
-      navigate(`/project/${projectId}`);
+      setLoading(false); // 로딩 상태 종료
+      navigate(`/project/${projectId}`); // 성공 시 이동
+      
     } catch (error) {
-      setLoading(false);
+      setLoading(false); // 에러 발생 시에도 로딩 상태 종료
       console.error('Error:', error);
-      alert('게시글 작성 중 오류가 발생했습니다: ' + (error.response?.data?.message || error.message));
+      alert('게시글 작성 중 오류가 발생했습니다: ' + error.message);
     }
   };
 
@@ -208,16 +292,23 @@ const handleLinkDelete = (indexToDelete) => {
                     type="url"
                     value={linkUrl}
                     onChange={(e) => {
-                      if (e.target.value.length <= 1000) {
-                        setLinkUrl(e.target.value);
+                      const value = e.target.value;
+                      if (value.length <= 1000) {
+                        setLinkUrl(value);
+                        if (value && !isValidUrl(value)) {
+                          setLinkUrlError('올바른 URL 형식이 아닙니다. (예: https://www.example.com)');
+                        } else {
+                          setLinkUrlError('');
+                        }
                       }
                     }}
-                    placeholder="URL을 입력하세요"
+                    placeholder="URL을 입력하세요 (예: https://www.example.com)"
                     maxLength={1000}
                   />
                   <CharacterCount>
                     {linkUrl.length}/1000
                   </CharacterCount>
+                  {linkUrlError && <ErrorMessage>{linkUrlError}</ErrorMessage>}
                 </LinkInputGroup>
                 <AddButton
                   type="button"

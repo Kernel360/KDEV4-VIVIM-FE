@@ -22,6 +22,7 @@ const ProjectPostModify = () => {
   const [postStatus, setPostStatus] = useState('NORMAL');
   const [linkTitle, setLinkTitle] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  const [linkUrlError, setLinkUrlError] = useState('');
   const [fileError, setFileError] = useState('');
   // Change the initial loading state from true to false
   const [loading, setLoading] = useState(false);  // Changed from useState(true)
@@ -157,15 +158,31 @@ const ProjectPostModify = () => {
     }
   };
 
+  // URL 형식 검증 함수
+  const isValidUrl = (url) => {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   // Update handleAddLink
   const handleAddLink = () => {
-
-    
-    if (linkTitle && linkUrl) {
-      setNewLinks([...newLinks, { title: linkTitle, url: linkUrl }]);
-      setLinkTitle('');
-      setLinkUrl('');
+    if (!linkTitle || !linkUrl) {
+      return;
     }
+
+    if (!isValidUrl(linkUrl)) {
+      setLinkUrlError('올바른 URL 형식이 아닙니다. (예: https://www.example.com)');
+      return;
+    }
+
+    setNewLinks([...newLinks, { title: linkTitle, url: linkUrl }]);
+    setLinkTitle('');
+    setLinkUrl('');
+    setLinkUrlError('');
   };
   
   // Update handleLinkDelete
@@ -405,16 +422,23 @@ const ProjectPostModify = () => {
           type="url"
           value={linkUrl}
           onChange={(e) => {
-            if (e.target.value.length <= 1000) {
-              setLinkUrl(e.target.value);
+            const value = e.target.value;
+            if (value.length <= 1000) {
+              setLinkUrl(value);
+              if (value && !isValidUrl(value)) {
+                setLinkUrlError('올바른 URL 형식이 아닙니다. (예: https://www.example.com)');
+              } else {
+                setLinkUrlError('');
+              }
             }
           }}
-          placeholder="URL을 입력하세요"
+          placeholder="URL을 입력하세요 (예: https://www.example.com)"
           maxLength={1000}
         />
         <CharacterCount>
           {linkUrl.length}/1000
         </CharacterCount>
+        {linkUrlError && <ErrorMessage>{linkUrlError}</ErrorMessage>}
       </LinkInputGroup>
       <AddButton
         type="button"
