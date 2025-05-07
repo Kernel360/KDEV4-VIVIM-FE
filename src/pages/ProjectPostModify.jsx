@@ -7,7 +7,7 @@ import { API_ENDPOINTS, API_BASE_URL } from '../config/api';
 
 
 // 파일 크기 제한 상수 추가 (상단에 추가)
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 
 const ProjectPostModify = () => {
   const { projectId, postId } = useParams();  // postId 추가
@@ -88,8 +88,9 @@ const ProjectPostModify = () => {
     }
     
     if (oversizedFiles.length > 0) {
-      alert('10MB 이상의 파일은 업로드할 수 없습니다:\n');
-      setFileError('10MB 이상의 파일은 업로드할 수 없습니다.');
+      alert('500MB 이상의 파일은 업로드할 수 없습니다:\n' + 
+        oversizedFiles.map(file => `${file.name} (${(file.size / (1024 * 1024)).toFixed(2)}MB)`).join('\n'));
+      setFileError('500MB 이상의 파일은 업로드할 수 없습니다.');
       e.target.value = '';
       return;
     }
@@ -283,15 +284,14 @@ const ProjectPostModify = () => {
         }
       }
   
-      // Inside handleSubmit function, after handling links
       // Add new files
       for (const file of newFiles) {
         try {
-          // 1. presigned URL 요청
-          const presignedUrlResponse = await fetch(API_ENDPOINTS.PROJECT_POST_FILE(projectId, postId), {
+          // 1. 멀티파트 업로드를 위한 presigned URL 요청
+          const presignedResponse = await fetch(API_ENDPOINTS.PROJECT_POST_FILE_MULTIPART(projectId, postId), {
             method: 'POST',
             headers: {
-              'Authorization': `${token}`,
+              'Authorization': token,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -301,23 +301,63 @@ const ProjectPostModify = () => {
             })
           });
 
-          if (!presignedUrlResponse.ok) {
-            throw new Error(`presignedURL 생성 실패: ${presignedUrlResponse.status}`);
+          if (!presignedResponse.ok) {
+            throw new Error(`Presigned URL 요청 실패: ${file.name}`);
           }
 
-          const { preSignedUrl } = await presignedUrlResponse.json();
+          const { objectKey, uploadId, presignedParts } = await presignedResponse.json();
 
-          // 2. presigned URL을 사용하여 S3에 파일 업로드
-          const uploadResponse = await fetch(preSignedUrl, {
-            method: 'PUT',
+          // 2. 각 파트 업로드 (병렬 처리)
+          const partSize = 25 * 1000 * 1000; // 25MB
+          const totalParts = Math.ceil(file.size / partSize);
+          const uploadPromises = [];
+
+          for (let i = 0; i < totalParts; i++) {
+            const start = i * partSize;
+            const end = Math.min(start + partSize, file.size);
+            const chunk = file.slice(start, end);
+            const partNumber = i + 1;
+            const presignedUrl = presignedParts.find(part => part.partNumber === partNumber).presignedUrl;
+
+            uploadPromises.push(
+              fetch(presignedUrl, {
+                method: 'PUT',
+                body: chunk,
+                headers: {
+                  'Content-Type': file.type
+                }
+              }).then(async (response) => {
+                if (!response.ok) {
+                  throw new Error(`파일 파트 업로드 실패: ${file.name} (파트 ${partNumber})`);
+                }
+                const etag = response.headers.get('ETag');
+                return {
+                  partNumber,
+                  etag
+                };
+              })
+            );
+          }
+
+          // 모든 파트 업로드가 완료될 때까지 대기
+          const uploadedParts = await Promise.all(uploadPromises);
+
+          // 3. 멀티파트 업로드 완료 요청
+          const completeResponse = await fetch(API_ENDPOINTS.PROJECT_POST_FILE_COMPLETE, {
+            method: 'POST',
             headers: {
-              'Content-Type': file.type
+              'Authorization': token,
+              'Content-Type': 'application/json'
             },
-            body: file
+            body: JSON.stringify({
+              key: objectKey,
+              uploadId: uploadId,
+              parts: uploadedParts
+            })
           });
 
-          if (!uploadResponse.ok) {
-            throw new Error(`파일 업로드 실패: ${uploadResponse.status}`);
+          if (!completeResponse.ok) {
+            throw new Error(`멀티파트 업로드 완료 실패: ${file.name}`);
           }
 
         } catch (error) {
@@ -556,7 +596,7 @@ const FileInputContainer = styled.div`
   gap: 12px;
   
   &::after {
-    content: '* 파일 크기는 10MB 이하여야 합니다.';
+    content: '* 파일 크기는 500MB 이하여야 합니다.';
     display: block;
     font-size: 12px;
     color: #64748b;
