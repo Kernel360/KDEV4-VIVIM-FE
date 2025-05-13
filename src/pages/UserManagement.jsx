@@ -574,7 +574,7 @@ const UserManagement = () => {
                         </StatusBadge>
                       </TableCell>
                       <TableCell $nowrap>
-                        {!user.isDeleted && (
+                        {!user.isDeleted && user.companyRole !== 'ADMIN' && (
                           <ActionButtonContainer>
                             <ActionButton 
                               onClick={(e) => {
