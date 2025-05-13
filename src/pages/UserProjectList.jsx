@@ -9,55 +9,57 @@ import MainContent from '../components/common/MainContent';
 const StatusBadge = styled.span`
   display: inline-flex;
   align-items: center;
-  padding: 4px 8px;
+  padding: 4px 10px;
   border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 600;
   white-space: nowrap;
-  background-color: ${props => {
-    if (props.status === 'DELETED') {
-      return 'rgba(185, 28, 28, 0.1)';
-    }
+  letter-spacing: -0.02em;
+  transition: all 0.15s ease;
+  background: ${props => {
     switch (props.status) {
-      case 'PENDING':
-        return 'rgba(220, 38, 38, 0.1)';
-      case 'IN_PROGRESS':
-        return 'rgba(46, 125, 50, 0.1)';
-      case 'COMPLETED':
-        return 'rgba(100, 116, 139, 0.1)';
-      case 'ON_HOLD':
-        return 'rgba(245, 158, 11, 0.1)';
-      default:
-        return 'rgba(100, 116, 139, 0.1)';
+      case 'PROGRESS': return '#F0FDF4';
+      case 'INSPECTION': return '#FEF2F2';
+      case 'COMPLETED': return '#F1F5F9';
+      case 'PENDING': return '#F1F5F9';
+      case 'DELETED': return '#FEF2F2';
+      default: return '#F1F5F9';
     }
   }};
   color: ${props => {
-    if (props.status === 'DELETED') {
-      return '#B91C1C';
-    }
     switch (props.status) {
-      case 'PENDING':
-        return '#DC2626';
-      case 'IN_PROGRESS':
-        return '#2E7D32';
-      case 'COMPLETED':
-        return '#64748B';
-      case 'ON_HOLD':
-        return '#F59E0B';
-      default:
-        return '#64748B';
+      case 'PROGRESS': return '#15803D';
+      case 'INSPECTION': return '#B91C1C';
+      case 'COMPLETED': return '#64748B';
+      case 'PENDING': return '#64748B';
+      case 'DELETED': return '#B91C1C';
+      default: return '#64748B';
     }
   }};
+`;
 
-  &::before {
-    content: '';
-    display: inline-block;
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    margin-right: 6px;
-    background: currentColor;
-  }
+const RoleBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: -0.02em;
+  transition: all 0.15s ease;
+  background: ${props => {
+    if (props.role === 'CLIENT_MANAGER' || props.role === 'DEVELOPER_MANAGER') {
+      return '#FEF3C7';
+    }
+    return '#DBEAFE';
+  }};
+  color: ${props => {
+    if (props.role === 'CLIENT_MANAGER' || props.role === 'DEVELOPER_MANAGER') {
+      return '#92400E';
+    }
+    return '#1E40AF';
+  }};
 `;
 
 const TableCell = styled.td`
@@ -354,8 +356,25 @@ const UserProjectList = () => {
         return '검수중';
       case 'COMPLETED':
         return '완료';
+      case 'PENDING':
+        return '대기중';
       default:
         return '대기중';
+    }
+  };
+
+  const getProjectRole = (role) => {
+    switch (role) {
+      case 'CLIENT_USER':
+        return '고객사 사용자';
+      case 'CLIENT_MANAGER':
+        return '고객사 관리자';
+      case 'DEVELOPER_USER':
+        return '개발사 사용자';
+      case 'DEVELOPER_MANAGER':
+        return '개발사 관리자';
+      default:
+        return role;
     }
   };
 
@@ -455,7 +474,11 @@ const UserProjectList = () => {
                   {getProjectStatus(project)}
                 </StatusBadge>
               </TableCell>
-              <TableCell>{project.myRole}</TableCell>
+              <TableCell>
+                <RoleBadge role={project.myRole}>
+                  {getProjectRole(project.myRole)}
+                </RoleBadge>
+              </TableCell>
             </TableRow>
           ))}
         </tbody>
