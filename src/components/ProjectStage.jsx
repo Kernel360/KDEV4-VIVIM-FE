@@ -12,7 +12,7 @@ import ConfirmModal from './common/ConfirmModal';
 
 // currentProgress 열거형 값과 단계 이름 매핑
 const PROGRESS_STAGE_MAP = {
-  '요구사항정의': '요구사항정의',
+  '요구사항 정의': '요구사항 정의',
   '화면설계': '화면 설계',
   '디자인': '디자인',
   '퍼블리싱': '퍼블리싱',
@@ -23,7 +23,7 @@ const PROGRESS_STAGE_MAP = {
 
 // currentProgress 열거형 값과 단계 이름 매핑 (역방향)
 const REVERSE_PROGRESS_STAGE_MAP = {
-  '요구사항정의': '요구사항정의',
+  '요구사항 정의': '요구사항 정의',
   '화면 설계': '화면설계',
   '디자인': '디자인',
   '퍼블리싱': '퍼블리싱',
@@ -486,16 +486,21 @@ const ProjectStageProgress = ({
       return { isCurrent: false, isCompleted: true };
     }
     
-    // 단계 이름에서 띄어쓰기 제거 처리
-    const normalizedStageName = stage.name === '요구사항 정의' ? '요구사항정의' : stage.name;
-    const normalizedCurrentProgress = currentProgress === '요구사항 정의' ? '요구사항정의' : currentProgress;
+    // 단계 이름 정규화 처리
+    const normalizeStageName = (name) => {
+      if (name === '요구사항정의' || name === '요구사항 정의') return '요구사항 정의';
+      return name;
+    };
+    
+    const normalizedStageName = normalizeStageName(stage.name);
+    const normalizedCurrentProgress = normalizeStageName(currentProgress);
     
     // 현재 단계의 name과 currentProgress가 일치하는지 확인
     const isCurrent = normalizedStageName === normalizedCurrentProgress;
     
     // currentProgress에 해당하는 단계의 position 값 찾기
     const currentProgressStage = progressList.find(s => {
-      const normalizedName = s.name === '요구사항 정의' ? '요구사항정의' : s.name;
+      const normalizedName = normalizeStageName(s.name);
       return normalizedName === normalizedCurrentProgress;
     });
     const currentProgressPosition = currentProgressStage?.position || 0;
