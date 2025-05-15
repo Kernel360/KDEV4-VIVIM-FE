@@ -6,15 +6,13 @@ import { API_ENDPOINTS } from '../config/api';
 import ApprovalDecision from '../components/ApprovalDecision';
 import { ApprovalDecisionStatus, ApprovalProposalStatus } from '../constants/enums';
 import ProjectStageProgress from '../components/ProjectStage';
-import { FaEdit, FaTrashAlt, FaSave, FaTimes, FaCheck, FaClock, FaFileDownload, FaLink } from 'react-icons/fa';
+import { FaEdit, FaTrashAlt, FaSave, FaTimes, FaCheck, FaClock } from 'react-icons/fa';
 import approvalUtils from '../utils/approvalStatus';
 import ApprovalProposal from '../components/ApprovalProposal';
 import axiosInstance from '../utils/axiosInstance';
 import MainContent from '../components/common/MainContent';
 import { useAuth } from '../hooks/useAuth';
 import FileLinkUploader from '../components/common/FileLinkUploader';
-import FileLinkDeleter from '../components/common/FileLinkDeleter';
-import { ActionBadge } from '../components/common/Badge';
 
 const { getApprovalStatusText, getApprovalStatusBackgroundColor, getApprovalStatusTextColor } = approvalUtils;
 
@@ -480,7 +478,7 @@ const FileList = styled.div`
 const FileItem = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
   padding: 8px 12px;
   background-color: #f8fafc;
   border: 1px solid #e2e8f0;
@@ -493,17 +491,11 @@ const FileItem = styled.div`
 
 const FileIcon = styled.span`
   font-size: 16px;
-  flex-shrink: 0;
 `;
 
 const FileName = styled.span`
   font-size: 14px;
   color: #1e293b;
-  flex: 1;
-  text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 `;
 
 const LinkList = styled.div`
@@ -595,20 +587,16 @@ const AddLinkButton = styled(FileButton)`
   `}
 `;
 
-const FileLinkDeleteButton = styled.button`
+const DeleteButton = styled.button`
   background: none;
   border: none;
-  color: #64748b;
+  color: #dc2626;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 4px;
   font-size: 14px;
-  transition: all 0.2s;
-  margin-left: 8px;
-
+  
   &:hover {
-    background-color: #fee2e2;
-    color: #dc2626;
+    color: #b91c1c;
   }
 `;
 
@@ -741,38 +729,12 @@ const RejectionNotice = styled.div`
   }
 `;
 
-const InputGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-`;
-
-const Label = styled.label`
-  font-size: 14px;
-  font-weight: 500;
-  color: #1e293b;
-`;
-
-const LinkInputContainer = styled.div`
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-`;
-
-const LinkInputGroup = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-`;
-
 const ApprovalDetail = () => {
   const { projectId, approvalId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const isDeveloper = user?.companyRole === 'ADMIN' || user?.companyRole === 'DEVELOPER';
+  const isDeveloper = user?.projectUserManagerRole === 'DEVELOPER';
   const [proposal, setProposal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -792,41 +754,56 @@ const ApprovalDetail = () => {
   const actionsMenuRef = useRef(null);
   const [files, setFiles] = useState([]);
   const [links, setLinks] = useState([]);
-  const [existingFiles, setExistingFiles] = useState([]);
-  const [existingLinks, setExistingLinks] = useState([]);
-  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
-  const [isLoadingLinks, setIsLoadingLinks] = useState(false);
-  const [newFiles, setNewFiles] = useState([]);
-  const [filesToDelete, setFilesToDelete] = useState([]);
-  const [linksToDelete, setLinksToDelete] = useState([]);
-  const [newLinks, setNewLinks] = useState([]);
-  const [linkTitle, setLinkTitle] = useState('');
-  const [linkUrl, setLinkUrl] = useState('');
-  const [linkUrlError, setLinkUrlError] = useState('');
+  const [editFiles, setEditFiles] = useState([]);
+  const [editLinks, setEditLinks] = useState([]);
+  const [newLink, setNewLink] = useState({ title: '', url: '' });
+  const [deletedFileIds, setDeletedFileIds] = useState([]);
+  const [deletedLinkIds, setDeletedLinkIds] = useState([]);
   const [approvers, setApprovers] = useState([]);
   const [showApproverGuide, setShowApproverGuide] = useState(false);
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!projectId || !approvalId) return;
-
-      try {
-        setLoading(true);
-        await Promise.all([
-          fetchProposalDetail(),
-          fetchFiles(),
-          fetchLinks()
-        ]);
-      } catch (error) {
-        console.error('데이터 조회 중 오류 발생:', error);
-        setError('데이터를 불러오는데 실패했습니다.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    if (projectId && approvalId) {
+      console.log('프로젝트 ID와 승인 ID로 데이터를 가져옵니다:', { projectId, approvalId });
+      fetchProposalDetail();
+      fetchFiles();
+      fetchLinks();
+    }
   }, [projectId, approvalId]);
+
+  // 프로젝트 진행 단계 조회
+  const fetchProjectProgress = async () => {
+    try {
+      setProgressLoading(true);
+      console.log("프로젝트 진행 단계 조회 시작:", projectId);
+      
+      const { data } = await axiosInstance.get(`${API_ENDPOINTS.PROJECT_DETAIL(projectId)}/progress`);
+      console.log("프로젝트 진행 단계 데이터:", data);
+      
+      if (data.progressList && data.progressList.length > 0) {
+        setProgressList(data.progressList);
+        console.log("프로젝트 진행 단계 설정 완료:", data.progressList.length, "개 항목");
+        
+        // 승인 요청이 속한 단계 찾기
+        const stageIndex = data.progressList.findIndex(
+          stage => stage.id === proposal?.progressId
+        );
+        
+        if (stageIndex >= 0) {
+          console.log("현재 단계 찾음:", stageIndex, data.progressList[stageIndex].name);
+          setCurrentStageIndex(stageIndex);
+        } else {
+          console.log("승인요청의 단계를 찾지 못함. progressId:", proposal?.progressId);
+        }
+      } else {
+        console.log("프로젝트 진행 단계 데이터가 없거나 비어있습니다");
+      }
+      setProgressLoading(false);
+    } catch (error) {
+      console.error('Error fetching project progress:', error);
+      setProgressLoading(false);
+    }
+  };
 
   const fetchProposalDetail = async () => {
     try {
@@ -834,33 +811,58 @@ const ApprovalDetail = () => {
       const { data } = await axiosInstance.get(API_ENDPOINTS.APPROVAL.DETAIL(approvalId), {
         withCredentials: true
       });
+      console.log('승인요청 상세 응답:', JSON.stringify(data, null, 2));
+      setProposal(data);
       
+      // 백엔드 응답 필드 확인 (proposalStatus 또는 approvalProposalStatus)
       let proposalStatus = data.proposalStatus || data.approvalProposalStatus;
       
+      // 승인권자가 없는 경우 "요청전" 상태로 표시
       if (data.totalApproverCount === 0 || 
           (Array.isArray(data.approvers) && data.approvers.length === 0) ||
           proposalStatus === ApprovalProposalStatus.DRAFT) {
         proposalStatus = ApprovalProposalStatus.DRAFT;
+        console.log("승인권자가 없거나 요청 전 상태로 '요청전'으로 표시합니다.");
       }
       
+      // 상태가 결정된 후 로그 출력
       if (proposalStatus) {
+        console.log("승인요청 상태:", proposalStatus, "→", getApprovalStatusText(proposalStatus));
         data.displayStatus = proposalStatus;
       }
       
+      // 승인권자 카운트 정보 확인
+      if (data.totalApproverCount !== undefined) {
+        console.log(`승인권자 총 ${data.totalApproverCount}명 중 ${data.approvedApproverCount || 0}명 승인 완료`);
+        
+        const waitingOrBeforeRequest = (data.waitingApproverCount || 0) + (data.beforeRequestCount || 0);
+        console.log(`대기중: ${waitingOrBeforeRequest}명, 반려: ${data.modificationRequestedApproverCount || 0}명`);
+        
+        // 모든 승인권자가 승인을 완료했는지 확인
+        const isAllApproved = data.totalApproverCount > 0 && 
+          data.approvedApproverCount === data.totalApproverCount;
+        
+        console.log(`모두 승인됨: ${isAllApproved ? '예' : '아니오'}`);
+      }
+      
+      // 마지막 전송 시간 추적 및 변경사항 감지
       if (data.lastSentAt) {
         setLastSentAt(new Date(data.lastSentAt));
         
+        // 마지막 전송 이후 변경 여부 확인 (updatedAt과 lastSentAt 비교)
         if (data.updatedAt && data.lastSentAt) {
           const updatedTime = new Date(data.updatedAt).getTime();
           const lastSentTime = new Date(data.lastSentAt).getTime();
-          setHasChanges(updatedTime > lastSentTime);
+          const changes = updatedTime > lastSentTime;
+          setHasChanges(changes);
+          console.log(`마지막 전송 후 변경사항: ${changes ? '있음' : '없음'}`);
         }
       } else {
+        // 전송 이력이 없는 경우
         setLastSentAt(null);
-        setHasChanges(true);
+        setHasChanges(true); // 처음 전송하는 경우 변경사항 있음으로 간주
       }
       
-      setProposal(data);
       setLoading(false);
     } catch (error) {
       console.error('승인요청 상세 조회 실패:', error);
@@ -879,6 +881,7 @@ const ApprovalDetail = () => {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   };
 
+  // 승인요청 전송 함수
   const handleSendApproval = async () => {
     try {
       if (!proposal.id) {
@@ -886,6 +889,7 @@ const ApprovalDetail = () => {
         return;
       }
 
+      // 승인권자 수 확인
       console.log('승인권자 수 확인 중...');
       try {
         const { data: approverData } = await axiosInstance.get(API_ENDPOINTS.APPROVAL.APPROVERS(proposal.id), {
@@ -894,6 +898,7 @@ const ApprovalDetail = () => {
         
         console.log('승인권자 데이터:', approverData);
         
+        // 다양한 응답 구조 처리
         let approvers = [];
         if (approverData.approverResponses) {
           approvers = approverData.approverResponses;
@@ -947,6 +952,7 @@ const ApprovalDetail = () => {
     }
   };
 
+  // 재승인요청 전송 함수 수정
   const handleResendApproval = async () => {
     try {
       if (!proposal.id) {
@@ -954,11 +960,13 @@ const ApprovalDetail = () => {
         return;
       }
 
+      // 변경사항이 없는 경우 알림 표시 후 함수 종료
       if (!hasChanges) {
         alert('승인요청 상세 내용에 수정사항이 없습니다.\n수정 후 재승인요청을 전송해주세요.');
         return;
       }
 
+      // 변경사항이 있는 경우에만 확인 메시지 표시
       const isConfirmed = window.confirm(
         '고객사의 승인요청 반려에 따른 수정사항 반영이 필요합니다.\n' +
         '반영된 수정사항은 승인요청 수정 버튼을 눌러 작성해주세요.\n\n' +
@@ -995,6 +1003,7 @@ const ApprovalDetail = () => {
     }
   };
 
+  // 승인권자 수정 모달 열기 함수
   const handleOpenEditApprovers = () => {
     console.log('승인권자 수정 모달 열기 시도:', { projectId, locationState: location.state, proposal });
     
@@ -1011,131 +1020,80 @@ const ApprovalDetail = () => {
     setIsApproversModalOpen(false);
   };
 
-  const handleSaveApprovers = async (approverIds) => {
-    try {
-      if (!approvalId) {
-        console.error('승인요청 ID를 찾을 수 없습니다.');
-        return;
-      }
-
-      await fetchApprovers();
-      setIsApproversModalOpen(false);
-      alert('승인권자가 성공적으로 저장되었습니다.');
-    } catch (error) {
-      console.error('승인권자 저장 중 오류:', error);
-      if (error.response?.status !== 403) {
-        alert('승인권자 저장에 실패했습니다: ' + (error.response?.data?.message || error.message));
-      }
-    }
-  };
-
-  const fetchApprovers = async () => {
-    try {
-      const { data } = await axiosInstance.get(API_ENDPOINTS.APPROVAL.APPROVERS(approvalId), {
-        withCredentials: true
-      });
-      
-      const approversList = data.approverResponses || [];
-      setApprovers(approversList);
-    } catch (error) {
-      console.error('승인권자 목록 조회 실패:', error);
-      setApprovers([]);
-    }
-  };
-
-  const getApproverStatusText = (status) => {
-    switch (status) {
-      case 'APPROVED':
-        return '승인';
-      case 'REJECTED':
-        return '반려';
-      case 'MODIFICATION_REQUESTED':
-        return '수정요청';
-      case 'NOT_RESPONDED':
-        return '응답대기중';
-      default:
-        return '미정';
-    }
-  };
-
-  const isValidUrl = (url) => {
-    if (!url) return true;
-    return url.startsWith('http://') || url.startsWith('https://');
-  };
-
-  const handleAddFile = (e) => {
-    const selectedFiles = Array.from(e.target.files);
-    setNewFiles(prevFiles => {
-      const updatedFiles = [...prevFiles];
-      selectedFiles.forEach(file => {
-        const isDuplicate = updatedFiles.some(existingFile => existingFile.name === file.name);
-        if (!isDuplicate) {
-          updatedFiles.push(file);
-        }
-      });
-      return updatedFiles;
-    });
-    e.target.value = '';
-  };
-
-  const handleFileDelete = (index, isExisting) => {
-    if (isExisting) {
-      const fileToDelete = existingFiles[index];
-      setFilesToDelete(prev => [...prev, fileToDelete.id]);
-      setExistingFiles(prev => prev.filter((_, i) => i !== index));
-    } else {
-      setNewFiles(prev => prev.filter((_, i) => i !== index));
-    }
-  };
-
-  const handleAddLink = () => {
-    if (!linkTitle || !linkUrl) {
-      return;
-    }
-
-    if (!isValidUrl(linkUrl)) {
-      setLinkUrlError('URL은 http:// 또는 https://로 시작해야 합니다.');
-      return;
-    }
-
-    setNewLinks([...newLinks, { title: linkTitle, url: linkUrl }]);
-    setLinkTitle('');
-    setLinkUrl('');
-    setLinkUrlError('');
-  };
-
-  const handleLinkDelete = (index, isExisting) => {
-    if (isExisting) {
-      const linkToDelete = existingLinks[index];
-      setLinksToDelete(prev => [...prev, linkToDelete.id]);
-      setExistingLinks(prev => prev.filter((_, i) => i !== index));
-    } else {
-      setNewLinks(prev => prev.filter((_, i) => i !== index));
-    }
-  };
-
+  // 수정 및 삭제 핸들러 추가
   const handleEditProposal = () => {
     setEditTitle(proposal.title);
     setEditContent(proposal.content);
-    setNewFiles([]);
-    setFilesToDelete([]);
-    setLinksToDelete([]);
-    setNewLinks([]);
+    setEditFiles(files);
+    setEditLinks(links);
     setIsEditing(true);
     setShowActionsMenu(false);
   };
 
+  // 수정 취소
   const handleCancelEdit = () => {
     setIsEditing(false);
-    setNewFiles([]);
-    setFilesToDelete([]);
-    setLinksToDelete([]);
-    setNewLinks([]);
-    setLinkTitle('');
-    setLinkUrl('');
-    setLinkUrlError('');
+    setEditFiles(files);
+    setEditLinks(links);
+    setDeletedFileIds([]); // 삭제 목록 초기화
+    setDeletedLinkIds([]); // 링크 삭제 목록 초기화
   };
 
+  const handleFileDelete = (indexToDelete) => {
+    const fileToDelete = editFiles[indexToDelete];
+    if (fileToDelete.id) {
+      // 기존 파일인 경우 삭제 목록에 추가
+      setDeletedFileIds(prev => [...prev, fileToDelete.id]);
+    }
+    // 파일 목록에서 제거
+    setEditFiles(prevFiles => prevFiles.filter((_, index) => index !== indexToDelete));
+  };
+
+  const handleFileChange = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    setEditFiles(prevFiles => [...prevFiles, ...selectedFiles]);
+  };
+
+  const handleLinkDelete = (indexToDelete) => {
+    const linkToDelete = editLinks[indexToDelete];
+    if (linkToDelete.id) {
+      // 기존 링크인 경우 삭제 목록에 추가
+      setDeletedLinkIds(prev => [...prev, linkToDelete.id]);
+    }
+    // 링크 목록에서 제거
+    setEditLinks(prevLinks => prevLinks.filter((_, index) => index !== indexToDelete));
+  };
+
+  const handleAddLink = () => {
+    if (!newLink.title.trim() || !newLink.url.trim()) {
+      alert('링크 제목과 URL을 모두 입력해주세요.');
+      return;
+    }
+
+    // URL 형식 검증
+    try {
+      new URL(newLink.url);
+    } catch (e) {
+      alert('올바른 URL 형식이 아닙니다.');
+      return;
+    }
+
+    // 새 링크 추가
+    setEditLinks(prevLinks => [...prevLinks, { ...newLink }]);
+    
+    // 입력 필드 초기화
+    setNewLink({ title: '', url: '' });
+  };
+
+  const handleFilesChange = (newFiles) => {
+    setEditFiles(newFiles);
+  };
+
+  const handleLinksChange = (newLinks) => {
+    setEditLinks(newLinks);
+  };
+
+  // 수정 내용 저장
   const handleSaveEdit = async () => {
     if (!editTitle.trim() || !editContent.trim()) {
       alert('제목과 내용을 입력해주세요.');
@@ -1145,6 +1103,9 @@ const ApprovalDetail = () => {
     try {
       setSaving(true);
       
+      console.log('수정 요청 시작:', approvalId);
+      
+      // 1. 기본 정보 수정
       const requestData = {
         title: editTitle,
         content: editContent
@@ -1152,17 +1113,24 @@ const ApprovalDetail = () => {
       
       await axiosInstance.patch(API_ENDPOINTS.APPROVAL.MODIFY(approvalId), requestData);
 
-      for (const fileId of filesToDelete) {
-        await axiosInstance.patch(API_ENDPOINTS.FILE_DELETE(fileId));
+      // 2. 삭제된 파일 처리
+      for (const fileId of deletedFileIds) {
+        await axiosInstance.patch(API_ENDPOINTS.APPROVAL.FILE_DELETE(fileId));
       }
 
-      for (const linkId of linksToDelete) {
+      // 3. 삭제된 링크 처리
+      for (const linkId of deletedLinkIds) {
         await axiosInstance.patch(API_ENDPOINTS.APPROVAL.DELETE_LINK(linkId));
       }
 
-      for (const file of newFiles) {
+      // 4. 새 파일 업로드 처리
+      for (const file of editFiles) {
+        // 기존 파일인 경우 건너뛰기
+        if (file.id) continue;
+
+        // 새 파일인 경우에만 업로드
         const { data: { preSignedUrl, fileId } } = await axiosInstance.post(
-          API_ENDPOINTS.APPROVAL_FILE_UPLOAD(approvalId),
+          API_ENDPOINTS.APPROVAL.FILE_PRESIGNED(approvalId),
           {
             fileName: file.name,
             fileSize: file.size,
@@ -1170,6 +1138,7 @@ const ApprovalDetail = () => {
           }
         );
 
+        // S3에 파일 업로드
         await fetch(preSignedUrl, {
           method: 'PUT',
           body: file,
@@ -1179,15 +1148,20 @@ const ApprovalDetail = () => {
         });
       }
 
-      for (const link of newLinks) {
+      // 5. 새 링크 저장 처리
+      for (const link of editLinks) {
+        // 기존 링크인 경우 건너뛰기
+        if (link.id) continue;
+
         await axiosInstance.post(API_ENDPOINTS.APPROVAL.LINKS(approvalId), link);
       }
 
-      await Promise.all([
-        fetchFiles(),
-        fetchLinks()
-      ]);
+      // 6. 파일 목록 새로고침
+      await fetchFiles();
+      // 7. 링크 목록 새로고침
+      await fetchLinks();
 
+      // 8. UI 업데이트
       setProposal({
         ...proposal,
         title: editTitle,
@@ -1197,13 +1171,8 @@ const ApprovalDetail = () => {
       
       setIsEditing(false);
       setHasChanges(true);
-      setNewFiles([]);
-      setFilesToDelete([]);
-      setLinksToDelete([]);
-      setNewLinks([]);
-      setLinkTitle('');
-      setLinkUrl('');
-      setLinkUrlError('');
+      setDeletedFileIds([]); // 삭제 목록 초기화
+      setDeletedLinkIds([]); // 링크 삭제 목록 초기화
       alert('승인요청이 성공적으로 수정되었습니다.');
     } catch (error) {
       console.error('승인요청 수정 중 오류:', error);
@@ -1217,79 +1186,6 @@ const ApprovalDetail = () => {
     }
   };
 
-  const fetchFiles = async () => {
-    if (!approvalId) return;
-
-    try {
-      setIsLoadingFiles(true);
-      const response = await axiosInstance.get(
-        API_ENDPOINTS.APPROVAL.FILES(approvalId),
-        { withCredentials: true }
-      );
-      
-      let filesData = [];
-      if (Array.isArray(response.data)) {
-        filesData = response.data;
-      } else if (response.data?.files) {
-        filesData = response.data.files;
-      }
-
-      const formattedFiles = filesData.map(file => ({
-        id: file.id,
-        fileName: file.fileName,
-        fileSize: file.fileSize,
-        contentType: file.contentType,
-        createdAt: file.createdAt
-      }));
-
-      setFiles(formattedFiles);
-      setExistingFiles(formattedFiles);
-      console.log('파일 목록 조회 성공:', formattedFiles);
-    } catch (error) {
-      console.error('파일 목록 조회 실패:', error);
-      setFiles([]);
-      setExistingFiles([]);
-    } finally {
-      setIsLoadingFiles(false);
-    }
-  };
-
-  const fetchLinks = async () => {
-    if (!approvalId) return;
-
-    try {
-      setIsLoadingLinks(true);
-      const response = await axiosInstance.get(
-        API_ENDPOINTS.APPROVAL.GET_LINKS(approvalId),
-        { withCredentials: true }
-      );
-      
-      let linksData = [];
-      if (Array.isArray(response.data)) {
-        linksData = response.data;
-      } else if (response.data?.links) {
-        linksData = response.data.links;
-      }
-
-      const formattedLinks = linksData.map(link => ({
-        id: link.id,
-        title: link.title,
-        url: link.url,
-        createdAt: link.createdAt
-      }));
-
-      setLinks(formattedLinks);
-      setExistingLinks(formattedLinks);
-      console.log('링크 목록 조회 성공:', formattedLinks);
-    } catch (error) {
-      console.error('링크 목록 조회 실패:', error);
-      setLinks([]);
-      setExistingLinks([]);
-    } finally {
-      setIsLoadingLinks(false);
-    }
-  };
-
   const handleDeleteProposal = async () => {
     if (!proposal || !approvalId) return;
     
@@ -1300,10 +1196,52 @@ const ApprovalDetail = () => {
     try {
       await axiosInstance.delete(API_ENDPOINTS.APPROVAL.DELETE(approvalId));
       alert('승인요청이 성공적으로 삭제되었습니다.');
-      navigate(-1);
+      navigate(-1); // 이전 페이지로 이동
     } catch (error) {
       console.error('Error deleting proposal:', error);
       alert('승인요청 삭제에 실패했습니다.');
+    }
+  };
+
+  const fetchFiles = async () => {
+    try {
+      // 권한 체크
+      if (!user.isAdmin && !user.isClient && !user.isDeveloperManager) {
+        console.log('파일 조회 권한이 없습니다.');
+        return;
+      }
+
+      const response = await axiosInstance.get(`${API_ENDPOINTS.APPROVAL.FILES(approvalId)}`, {
+        withCredentials: true
+      });
+      setFiles(response.data);
+    } catch (error) {
+      console.error('Error fetching files:', error);
+      if (error.response?.status === 403) {
+        console.log('파일 조회 권한이 없습니다.');
+      }
+      setFiles([]);
+    }
+  };
+
+  const fetchLinks = async () => {
+    try {
+      // 권한 체크
+      if (!user.isAdmin && !user.isClient && !user.isDeveloperManager) {
+        console.log('링크 조회 권한이 없습니다.');
+        return;
+      }
+
+      const response = await axiosInstance.get(`${API_ENDPOINTS.APPROVAL.GET_LINKS(approvalId)}`, {
+        withCredentials: true
+      });
+      setLinks(response.data);
+    } catch (error) {
+      console.error('Error fetching links:', error);
+      if (error.response?.status === 403) {
+        console.log('링크 조회 권한이 없습니다.');
+      }
+      setLinks([]);
     }
   };
 
@@ -1314,6 +1252,68 @@ const ApprovalDetail = () => {
     } catch (error) {
       console.error('파일 다운로드 중 오류 발생:', error);
       alert('파일 다운로드에 실패했습니다.');
+    }
+  };
+
+  // 승인권자 저장 처리 함수 수정
+  const handleSaveApprovers = async (approverIds) => {
+    try {
+      if (!approvalId) {
+        console.error('승인요청 ID를 찾을 수 없습니다.');
+        return;
+      }
+
+      // 승인권자 목록 새로고침
+      await fetchApprovers();
+      
+      setIsApproversModalOpen(false);
+      alert('승인권자가 성공적으로 저장되었습니다.');
+    } catch (error) {
+      // 403이 아닌 다른 에러만 처리
+      if (error.response?.status !== 403) {
+        console.error('승인권자 저장 중 오류:', error);
+        alert('승인권자 저장에 실패했습니다: ' + (error.response?.data?.message || error.message));
+      }
+    }
+  };
+
+  // 승인권자 목록 조회 함수 수정
+  const fetchApprovers = async () => {
+    try {
+      const { data } = await axiosInstance.get(API_ENDPOINTS.APPROVAL.APPROVERS(approvalId), {
+        withCredentials: true
+      });
+      console.log('승인권자 목록 응답:', data);
+      
+      // approverResponses 배열이 있는 경우 해당 데이터 사용
+      const approversList = data.approverResponses || [];
+      setApprovers(approversList);
+    } catch (error) {
+      console.error('승인권자 목록 조회 실패:', error);
+      setApprovers([]);
+    }
+  };
+
+  // 승인권자 목록 자동 새로고침
+  useEffect(() => {
+    if (approvalId) {
+      fetchApprovers();
+    }
+  }, [approvalId, isApproversModalOpen]); // 모달이 닫힐 때도 목록 새로고침
+
+  // 승인권자 상태 텍스트 변환 함수 수정
+  const getApproverStatusText = (status) => {
+    switch (status) {
+      case 'APPROVED':
+        return '승인';
+      case 'REJECTED':
+        return '반려';
+      case 'MODIFICATION_REQUESTED':
+        return '수정요청';
+      case 'NOT_RESPONDED':
+        return '응답대기중';
+      default:
+        return '미정';
     }
   };
 
@@ -1335,7 +1335,9 @@ const ApprovalDetail = () => {
             <ErrorMessage>{error}</ErrorMessage>
           ) : proposal ? (
             <ContentContainer>
+              {/* 콘텐츠 영역을 그리드로 배치 */}
               <ContentGrid>
+                {/* 왼쪽 영역: 제안 정보 및 승인 결정 */}
                 <div>
                   <ProposalInfoSection>
                     {progressList && progressList.length > 0 && currentStageIndex >= 0 && currentStageIndex < progressList.length && (
@@ -1344,6 +1346,7 @@ const ApprovalDetail = () => {
                       </ProposalSubtitle>
                     )}
                     
+                    {/* 반려 상태일 때 강조 멘트 표시 */}
                     {proposal.approvalProposalStatus === ApprovalProposalStatus.FINAL_REJECTED && (
                       <RejectionNotice>
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1359,6 +1362,7 @@ const ApprovalDetail = () => {
                       </RejectionNotice>
                     )}
                     
+                    {/* 요청 상태를 제목 위에 표시 */}
                     <StatusContainer>
                       <StatusBadge status={proposal.approvalProposalStatus}>
                         {getApprovalStatusText(proposal.approvalProposalStatus)}
@@ -1445,85 +1449,12 @@ const ApprovalDetail = () => {
                           />
                         </div>
 
-                        <InputGroup>
-                          <Label>파일 첨부 (선택사항)</Label>
-                          <FileInputContainer>
-                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                              <HiddenFileInput
-                                type="file"
-                                onChange={handleAddFile}
-                                multiple
-                                id="fileInput"
-                              />
-                              <FileButton type="button" onClick={() => document.getElementById('fileInput').click()}>
-                                파일 선택
-                              </FileButton>
-                            </div>
-                            {(existingFiles.length > 0 || newFiles.length > 0) && (
-                              <FileLinkDeleter
-                                files={[...existingFiles, ...newFiles]}
-                                onFileDelete={(index) => {
-                                  const isExisting = index < existingFiles.length;
-                                  handleFileDelete(index, isExisting);
-                                }}
-                              />
-                            )}
-                          </FileInputContainer>
-                        </InputGroup>
-
-                        <InputGroup>
-                          <Label>링크 (선택사항)</Label>
-                          <LinkInputContainer>
-                            <LinkInputGroup>
-                              <Input
-                                type="text"
-                                value={linkTitle}
-                                onChange={(e) => setLinkTitle(e.target.value)}
-                                placeholder="링크 제목을 입력하세요"
-                                maxLength={60}
-                              />
-                            </LinkInputGroup>
-                            
-                            <LinkInputGroup>
-                              <Input
-                                type="url"
-                                value={linkUrl}
-                                onChange={(e) => {
-                                  setLinkUrl(e.target.value);
-                                  if (e.target.value && !isValidUrl(e.target.value)) {
-                                    setLinkUrlError('URL은 http:// 또는 https://로 시작해야 합니다.');
-                                  } else {
-                                    setLinkUrlError('');
-                                  }
-                                }}
-                                placeholder="URL을 입력하세요 (http:// 또는 https://로 시작)"
-                                maxLength={1000}
-                              />
-                              {linkUrlError && <ErrorMessage>{linkUrlError}</ErrorMessage>}
-                            </LinkInputGroup>
-                            {(linkTitle || linkUrl) && (
-                              <ActionBadge
-                                type="success"
-                                size="large"
-                                onClick={handleAddLink}
-                                disabled={!linkTitle || !linkUrl}
-                                style={{ minWidth: '100px', height: '65px' }}
-                              >
-                                추가
-                              </ActionBadge>
-                            )}
-                          </LinkInputContainer>
-                          
-                          {(existingLinks.length > 0 || newLinks.length > 0) && (
-                            <FileLinkDeleter
-                              links={[...existingLinks, ...newLinks]}
-                              onLinkDelete={(index) => {
-                                const isExisting = index < existingLinks.length;
-                                handleLinkDelete(index, isExisting);
-                              }}
-                            />
-                          )}
-                        </InputGroup>
+                        <FileLinkUploader
+                          onFilesChange={handleFilesChange}
+                          onLinksChange={handleLinksChange}
+                          initialFiles={editFiles}
+                          initialLinks={editLinks}
+                        />
 
                         <ApprovalButtonContainer>
                           <ApprovalActionButton 
@@ -1565,13 +1496,12 @@ const ApprovalDetail = () => {
                           </div>
                         </ProposalContent>
                         
+                        {/* 파일 목록 섹션 */}
                         <AttachmentsSection>
                           <AttachmentContainer>
                             <AttachmentGroup>
                               <GroupTitle>파일</GroupTitle>
-                              {isLoadingFiles ? (
-                                <PlaceholderMessage>파일 목록을 불러오는 중...</PlaceholderMessage>
-                              ) : files.length > 0 ? (
+                              {files.length > 0 ? (
                                 <FileList>
                                   {files.map((file) => (
                                     <FileItem 
@@ -1593,12 +1523,10 @@ const ApprovalDetail = () => {
                           <AttachmentContainer>
                             <AttachmentGroup>
                               <GroupTitle>링크</GroupTitle>
-                              {isLoadingLinks ? (
-                                <PlaceholderMessage>링크 목록을 불러오는 중...</PlaceholderMessage>
-                              ) : links.length > 0 ? (
+                              {links.length > 0 ? (
                                 <LinkList>
-                                  {links.map((link) => (
-                                    <LinkItem key={link.id} onClick={() => window.open(link.url, '_blank')}>
+                                  {links.map((link, index) => (
+                                    <LinkItem key={index} onClick={() => window.open(link.url, '_blank')}>
                                       <LinkIcon>🔗</LinkIcon>
                                       <LinkTitle>{link.title}</LinkTitle>
                                     </LinkItem>
@@ -1611,22 +1539,17 @@ const ApprovalDetail = () => {
                           </AttachmentContainer>
                         </AttachmentsSection>
 
+                        {/* 승인권자 목록 섹션 수정 */}
                         {(proposal.approvalProposalStatus === ApprovalProposalStatus.DRAFT || 
                           proposal.approvalProposalStatus === ApprovalProposalStatus.BEFORE_REQUEST_PROPOSAL) && (
                           <ApproversSection>
                             <ApproversHeader>
                               <ApproversTitle>승인권자 목록</ApproversTitle>
-                              {proposal.approvalProposalStatus === ApprovalProposalStatus.DRAFT && isDeveloper && (
+                              {proposal.approvalProposalStatus === ApprovalProposalStatus.DRAFT && (
                                 <ApprovalActionButton 
                                   $secondary
                                   onClick={handleOpenEditApprovers}
-                                  style={{ 
-                                    padding: '4px 8px', 
-                                    fontSize: '13px',
-                                    backgroundColor: '#2E7D32',
-                                    color: 'white',
-                                    border: 'none'
-                                  }}
+                                  style={{ padding: '4px 8px', fontSize: '13px' }}
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -1634,7 +1557,7 @@ const ApprovalDetail = () => {
                                     <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                                     <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                                   </svg>
-                                  승인권자 지정
+                                  승인권자 수정
                                 </ApprovalActionButton>
                               )}
                             </ApproversHeader>
@@ -1687,6 +1610,7 @@ const ApprovalDetail = () => {
                           </ApproversSection>
                         )}
 
+                        {/* 승인 현황 요약 정보를 ApprovalDecision 컴포넌트로 전달 */}
                         {proposal?.displayStatus !== ApprovalProposalStatus.DRAFT && (
                           <div id="approvalDecisionComponent" style={{ marginTop: '24px' }}>
                             <ApprovalDecision 
@@ -1705,6 +1629,7 @@ const ApprovalDetail = () => {
                     )}
                   </ProposalInfoSection>
                   
+                  {/* 프로젝트 진행 단계를 ProposalInfoSection 바깥으로 이동 */}
                   {progressLoading ? (
                     <div style={{ marginTop: '24px', textAlign: 'center' }}>
                       <p>프로젝트 진행 단계를 불러오는 중...</p>
