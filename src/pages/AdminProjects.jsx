@@ -94,9 +94,17 @@ const AdminProjects = () => {
   };
 
   const getProgressStatus = (progress) => {
-    switch (progress) {
-      case 'REQUIREMENTS':
-        return '요구사항';
+    // 단계 이름 정규화 함수
+    const normalizeProgress = (name) => {
+      if (name === '요구사항정의' || name === '요구사항 정의') return '요구사항 정의';
+      return name;
+    };
+
+    const normalizedProgress = normalizeProgress(progress);
+    
+    switch (normalizedProgress) {
+      case '요구사항 정의':
+        return '요구사항 정의';
       case 'COMPLETED':
         return '완료';
       case 'INSPECTION':
@@ -114,7 +122,7 @@ const AdminProjects = () => {
       case 'DEPLOYMENT':
         return '배포';
       default:
-        return progress;
+        return normalizedProgress;
     }
   };
 

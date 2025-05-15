@@ -25,6 +25,18 @@ const DashboardAdmin = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
+  // 차트 라벨을 상수로 분리
+  const CHART_LABELS = ['요구사항 정의', '화면 설계', '디자인', '퍼블리싱', '개발', '검수', '완료', '기타'];
+
+  // 단계 이름 정규화 함수와 유효한 단계 목록을 컴포넌트 최상단으로 이동
+  const normalizeProgress = (name) => {
+    if (name === '요구사항정의' || name === '요구사항 정의') return '요구사항 정의';
+    if (name === '화면설계' || name === '화면 설계') return '화면 설계';
+    return name;
+  };
+
+  const validStages = ['요구사항 정의', '화면 설계', '디자인', '퍼블리싱', '개발', '검수', '완료', 'COMPLETED'];
+
   useEffect(() => {
     if (authLoading) return;
     
@@ -82,17 +94,18 @@ const DashboardAdmin = () => {
   const [allProjects, setAllProjects] = useState([]);
 
   const [projectStatusData, setProjectStatusData] = useState({
-    labels: ['요구사항정의', '화면설계', '디자인', '퍼블리싱', '개발', '검수', '완료'],
+    labels: CHART_LABELS,
     datasets: [{
-      data: [0, 0, 0, 0, 0, 0, 0],
+      data: [0, 0, 0, 0, 0, 0, 0, 0],
       backgroundColor: [
-        '#e8f5e9',  // 요구사항정의 - 가장 밝은 녹색
-        '#c8e6c9',  // 화면설계
+        '#e8f5e9',  // 요구사항 정의 - 가장 밝은 녹색
+        '#c8e6c9',  // 화면 설계
         '#a5d6a7',  // 디자인
         '#81c784',  // 퍼블리싱
         '#66bb6a',  // 개발
         '#4caf50',  // 검수
-        '#2E7D32'   // 완료 - 시그니처 색상
+        '#2E7D32',  // 완료 - 시그니처 색상
+        '#e2e8f0'   // 기타 - 회색
       ],
       borderWidth: 0,
     }]
@@ -411,7 +424,8 @@ const DashboardAdmin = () => {
               data.publishing || 0,
               data.development || 0,
               data.inspection || 0,
-              data.completed || 0
+              data.completed || 0,
+              data.other || 0
             ]
           }]
         }));
@@ -536,27 +550,34 @@ const DashboardAdmin = () => {
         
         // 통계 데이터 계산
         const totalProjects = activeProjects.filter(project => !project.deleted).length;
-        const inProgressProjects = activeProjects.filter(project => 
-          !project.deleted && project.currentProgress !== 'COMPLETED' && project.currentProgress !== '완료'
-        ).length;
-        const completedProjects = activeProjects.filter(project => 
-          !project.deleted && (project.currentProgress === 'COMPLETED' || project.currentProgress === '완료')
-        ).length;
+        const inProgressProjects = activeProjects.filter(project => {
+          const normalizedProgress = normalizeProgress(project.currentProgress);
+          return !project.deleted && normalizedProgress !== 'COMPLETED' && normalizedProgress !== '완료';
+        }).length;
+        const completedProjects = activeProjects.filter(project => {
+          const normalizedProgress = normalizeProgress(project.currentProgress);
+          return !project.deleted && (normalizedProgress === 'COMPLETED' || normalizedProgress === '완료');
+        }).length;
         
         // 프로젝트 단계별 통계 계산
         const progressCounts = {
-          REQUIREMENTS: activeProjects.filter(p => !p.deleted && p.currentProgress === '요구사항정의').length,
-          WIREFRAME: activeProjects.filter(p => !p.deleted && p.currentProgress === '화면설계').length,
-          DESIGN: activeProjects.filter(p => !p.deleted && p.currentProgress === '디자인').length,
-          PUBLISHING: activeProjects.filter(p => !p.deleted && p.currentProgress === '퍼블리싱').length,
-          DEVELOPMENT: activeProjects.filter(p => !p.deleted && p.currentProgress === '개발').length,
-          INSPECTION: activeProjects.filter(p => !p.deleted && p.currentProgress === '검수').length,
-          COMPLETED: activeProjects.filter(p => !p.deleted && (p.currentProgress === 'COMPLETED' || p.currentProgress === '완료')).length
+          REQUIREMENTS: activeProjects.filter(p => !p.deleted && normalizeProgress(p.currentProgress) === '요구사항 정의').length,
+          WIREFRAME: activeProjects.filter(p => !p.deleted && normalizeProgress(p.currentProgress) === '화면 설계').length,
+          DESIGN: activeProjects.filter(p => !p.deleted && normalizeProgress(p.currentProgress) === '디자인').length,
+          PUBLISHING: activeProjects.filter(p => !p.deleted && normalizeProgress(p.currentProgress) === '퍼블리싱').length,
+          DEVELOPMENT: activeProjects.filter(p => !p.deleted && normalizeProgress(p.currentProgress) === '개발').length,
+          INSPECTION: activeProjects.filter(p => !p.deleted && normalizeProgress(p.currentProgress) === '검수').length,
+          COMPLETED: activeProjects.filter(p => !p.deleted && (normalizeProgress(p.currentProgress) === 'COMPLETED' || normalizeProgress(p.currentProgress) === '완료')).length,
+          OTHER: activeProjects.filter(p => {
+            const normalizedProgress = normalizeProgress(p.currentProgress);
+            return !p.deleted && !validStages.includes(normalizedProgress);
+          }).length
         };
 
         // 도넛 차트 데이터 업데이트
         setProjectStatusData(prevData => ({
           ...prevData,
+          labels: CHART_LABELS,
           datasets: [{
             ...prevData.datasets[0],
             data: [
@@ -566,7 +587,8 @@ const DashboardAdmin = () => {
               progressCounts.PUBLISHING,
               progressCounts.DEVELOPMENT,
               progressCounts.INSPECTION,
-              progressCounts.COMPLETED
+              progressCounts.COMPLETED,
+              progressCounts.OTHER
             ]
           }]
         }));
@@ -691,8 +713,11 @@ const DashboardAdmin = () => {
   };
 
   const getProgressText = (progress) => {
-    if (progress === 'COMPLETED') return '완료';
-    return progress;
+    const normalizedProgress = normalizeProgress(progress);
+    
+    if (normalizedProgress === 'COMPLETED') return '완료';
+    if (!validStages.includes(normalizedProgress)) return '기타';
+    return normalizedProgress;
   };
 
   const handleInquiryClick = (inquiryId) => {
@@ -710,8 +735,7 @@ const DashboardAdmin = () => {
   const handleChartClick = (elements) => {
     if (elements.length > 0) {
       const index = elements[0].index;
-      const labels = ['요구사항정의', '화면설계', '디자인', '퍼블리싱', '개발', '검수', '완료'];
-      const selectedProgress = labels[index];
+      const selectedProgress = CHART_LABELS[index];
       setModalTitle(`${selectedProgress} 단계 프로젝트`);
       setShowModal(true);
       setLoading(true);
@@ -719,14 +743,17 @@ const DashboardAdmin = () => {
       try {
         let filteredProjects;
         if (selectedProgress === '완료') {
-          // 완료 단계인 경우 COMPLETED 또는 '완료' 상태인 프로젝트 필터링
           filteredProjects = allProjects.filter(project => 
             !project.deleted && (project.currentProgress === 'COMPLETED' || project.currentProgress === '완료')
           );
+        } else if (selectedProgress === '기타') {
+          filteredProjects = allProjects.filter(project => {
+            const normalizedProgress = normalizeProgress(project.currentProgress);
+            return !project.deleted && !validStages.includes(normalizedProgress);
+          });
         } else {
-          // 다른 단계인 경우 해당 단계의 프로젝트만 필터링
           filteredProjects = allProjects.filter(project => 
-            !project.deleted && project.currentProgress === selectedProgress
+            !project.deleted && normalizeProgress(project.currentProgress) === selectedProgress
           );
         }
         setProjectList(filteredProjects);
@@ -918,7 +945,9 @@ const DashboardAdmin = () => {
                             )}
                             <ProjectDetail>
                               <DetailLabel>현재 단계:</DetailLabel>
-                              <DetailValue>{getProgressText(project.currentProgress)}</DetailValue>
+                              <DetailValue>
+                                {project.currentProgress === 'COMPLETED' ? '완료' : project.currentProgress}
+                              </DetailValue>
                             </ProjectDetail>
                             <ProjectDetail>
                               <DetailLabel>상태:</DetailLabel>
