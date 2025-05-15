@@ -833,15 +833,13 @@ const EditApproversModal = ({ isOpen, onClose, onSave, projectId, approvalId, pr
         { approverIds },
         { withCredentials: true }
       );
+      onClose();
+      onSave();
     } catch (error) {
       alert('승인권자 지정에 실패했습니다.');
-      return;
+    } finally {
+      setIsSaving(false);
     }
-
-    alert('승인권자가 성공적으로 지정되었습니다.');
-    onClose();
-    onSave();
-    setIsSaving(false);
   };
 
   return (

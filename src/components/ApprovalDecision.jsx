@@ -856,7 +856,7 @@ const StatusCount = styled.div`
   }
 `;
 
-const ApprovalDecision = ({ approvalId, statusSummary }) => {
+const ApprovalDecision = ({ approvalId, statusSummary, onRefresh }) => {
   // 모달 상태를 하나로 통합
   const [modalState, setModalState] = useState({
     isOpen: false,
@@ -1071,6 +1071,11 @@ const ApprovalDecision = ({ approvalId, statusSummary }) => {
       
       // 승인 응답 목록 새로고침
       await fetchDecisions();
+      
+      // 부모 컴포넌트의 새로고침 함수 호출
+      if (onRefresh) {
+        onRefresh();
+      }
       
     } catch (error) {
       console.error('승인응답 생성 오류:', error);
