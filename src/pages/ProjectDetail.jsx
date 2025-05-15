@@ -21,7 +21,7 @@ import { ActionBadge } from '../components/common/Badge';
 const { getApprovalStatusText, getApprovalStatusBackgroundColor, getApprovalStatusTextColor } = approvalUtils;
 
 const PROGRESS_STAGE_MAP = {
-  'REQUIREMENTS': '요구사항 정의',
+  'REQUIREMENTS': '요구사항정의',
   'WIREFRAME': '화면설계',
   'DESIGN': '디자인',
   'PUBLISHING': '퍼블리싱',
@@ -1616,10 +1616,15 @@ const ProjectDetail = () => {
         progressList: updatedProgressList
       });
 
-      // 완료된 단계 수 계산
-      const completedStages = updatedProgressList.reduce((count, status) => {
-        return status.isCompleted ? count + 1 : count;
-      }, 0);
+      // 현재 진행 중인 단계 찾기
+      const currentProgressStage = updatedProgressList.find(stage => 
+        stage.name === PROGRESS_STAGE_MAP[project?.currentProgress] || 
+        stage.name === project?.currentProgress
+      );
+      const currentPosition = currentProgressStage?.position || 0;
+      
+      // 현재 진행 중인 단계보다 position이 낮은 단계들의 개수 계산
+      const completedStages = updatedProgressList.filter(stage => stage.position < currentPosition).length;
 
       // 전체 진행률 업데이트 (단계 단위로)
       const totalStages = updatedProgressList.length;

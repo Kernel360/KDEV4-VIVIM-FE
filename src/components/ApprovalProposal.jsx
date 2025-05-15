@@ -15,7 +15,7 @@ const { getApprovalStatusText, getApprovalStatusBackgroundColor, getApprovalStat
 
 // currentProgress 열거형 값과 단계 이름 매핑
 const PROGRESS_STAGE_MAP = {
-  '요구사항정의': '요구사항 정의',
+  '요구사항정의': '요구사항정의',
   '화면설계': '화면 설계',
   '디자인': '디자인',
   '퍼블리싱': '퍼블리싱',
