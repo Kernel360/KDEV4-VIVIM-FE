@@ -93,6 +93,76 @@ const AdminProjects = () => {
     return '진행중';
   };
 
+  const getProgressColor = (progress) => {
+    // 단계 이름 정규화 함수
+    const normalizeProgress = (name) => {
+      if (name === '요구사항정의' || name === '요구사항 정의') return '요구사항 정의';
+      return name;
+    };
+
+    const normalizedProgress = normalizeProgress(progress);
+    
+    switch (normalizedProgress) {
+      case '요구사항 정의':
+        return {
+          background: '#FEF3C7',  // 연한 노란색
+          text: '#92400E'  // 진한 갈색
+        };
+      case '화면 설계':
+        return {
+          background: '#DBEAFE',  // 연한 파란색
+          text: '#1E40AF'  // 진한 파란색
+        };
+      case '디자인':
+        return {
+          background: '#FCE7F3',  // 연한 분홍색
+          text: '#BE185D'  // 진한 분홍색
+        };
+      case '개발':
+        return {
+          background: '#E0E7FF',  // 연한 보라색
+          text: '#3730A3'  // 진한 보라색
+        };
+      case '배포':
+        return {
+          background: '#F3E8FF',  // 연한 보라색
+          text: '#6B21A8'  // 진한 보라색
+        };
+      case '완료':
+        return {
+          background: '#DCFCE7',  // 연한 초록색
+          text: '#15803D'  // 진한 초록색
+        };
+      default:
+        return {
+          background: '#F1F5F9',  // 연한 회색
+          text: '#64748B'  // 진한 회색
+        };
+    }
+  };
+
+  const ProgressBadge = styled.span`
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    background-color: ${props => getProgressColor(props.progress).background};
+    color: ${props => getProgressColor(props.progress).text};
+
+    &::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      margin-right: 6px;
+      background: currentColor;
+    }
+  `;
+
   const getProgressStatus = (progress) => {
     // 단계 이름 정규화 함수
     const normalizeProgress = (name) => {

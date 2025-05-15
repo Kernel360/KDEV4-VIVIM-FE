@@ -1047,7 +1047,7 @@ const ApprovalDecision = ({ approvalId, statusSummary }) => {
     }
 
     try {
-      // 1. 먼저 승인 응답 생성
+      // 승인 응답 생성
       const response = await axiosInstance.post(
         API_ENDPOINTS.DECISION.CREATE_WITH_APPROVER(modalState.selectedApprover.approverId),
         {
@@ -1056,41 +1056,10 @@ const ApprovalDecision = ({ approvalId, statusSummary }) => {
         }
       );
 
-      const decisionId = response.data.id;
-
-      // 2. 파일 업로드
-      if (files.length > 0) {
-        const formData = new FormData();
-        files.forEach(file => {
-          formData.append('files', file);
-        });
-        
-        await axiosInstance.post(
-          API_ENDPOINTS.DECISION.FILES(decisionId),
-          formData,
-          {
-            headers: {
-              'Content-Type': 'multipart/form-data'
-            }
-          }
-        );
-      }
-
-      // 3. 링크 업로드
-      if (links.length > 0) {
-        await axiosInstance.post(
-          API_ENDPOINTS.DECISION.LINKS(decisionId),
-          links
-        );
-      }
-
       // 상태 초기화
       setNewDecision({ content: '', status: '' });
-      setFiles([]);
-      setLinks([]);
-      setNewLink({ title: '', url: '' });
       
-      // 모달 닫기 - 먼저 모달 상태를 초기화
+      // 모달 닫기
       setModalState({
         isOpen: false,
         type: null,
@@ -1433,24 +1402,6 @@ const ApprovalDecision = ({ approvalId, statusSummary }) => {
                   <option value={ApprovalDecisionStatus.APPROVED}>승인</option>
                   <option value={ApprovalDecisionStatus.REJECTED}>반려</option>
                 </StatusSelect>
-              </InputGroup>
-              <InputGroup>
-                <Label>파일 첨부 (선택사항)</Label>
-                <FileLinkUploader
-                  onFilesChange={(newFiles) => setFiles(newFiles)}
-                  onLinksChange={(newLinks) => setLinks(newLinks)}
-                  initialFiles={files}
-                  initialLinks={links}
-                />
-              </InputGroup>
-              <InputGroup>
-                <Label>링크 추가 (선택사항)</Label>
-                <FileLinkUploader
-                  onFilesChange={(newFiles) => setFiles(newFiles)}
-                  onLinksChange={(newLinks) => setLinks(newLinks)}
-                  initialFiles={files}
-                  initialLinks={links}
-                />
               </InputGroup>
               <ModalButtonContainer>
                 <CancelButton onClick={closeModal}>취소</CancelButton>
