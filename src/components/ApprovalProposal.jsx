@@ -204,14 +204,15 @@ const ShowMoreButton = styled.button.attrs({
   }
 `;
 
+
 const AddButton = styled.button.attrs({
   className: 'approval-proposal-add-button'
 })`
   padding: 12px 24px;
-  background: ${props => props.disabled ? '#e2e8f0' : '#2E7D32'};
+  background: ${props => props.disabled ? '#e2e8f0' : '#9bf6b8'};
   border: none;
   border-radius: 6px;
-  color: ${props => props.disabled ? '#94a3b8' : 'white'};
+  color: ${props => props.disabled ? '#94a3b8' : '#15803D'};
   font-size: 14px;
   font-weight: 500;
   cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
@@ -220,7 +221,7 @@ const AddButton = styled.button.attrs({
   width: 100%;
 
   &:hover {
-    background: ${props => props.disabled ? '#e2e8f0' : '#1B5E20'};
+    background: ${props => props.disabled ? '#e2e8f0' : '#DCFCE7'};
   }
 `;
 
@@ -1698,7 +1699,7 @@ const ApprovalProposal = ({
         {!Boolean(projectInfo?.isDeleted) && !isClient() && !isProjectCompleted && (
           <AddButtonContainer>
             <AddButton onClick={() => setIsCreateModalOpen(true)}>
-              + 승인요청 추가  
+              + 승인요청 추가 
             </AddButton>
           </AddButtonContainer>
         )}

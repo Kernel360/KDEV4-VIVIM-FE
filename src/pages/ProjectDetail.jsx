@@ -1822,7 +1822,7 @@ const ProjectDetail = () => {
                       수정
                     </ActionBadge>
                     <ActionBadge
-                      type="error"
+                      type="danger"
                       size="medium"
                       onClick={() => handleDeleteProject()}
                     >

@@ -9,6 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 import { API_ENDPOINTS } from '../config/api';
 import axiosInstance from '../utils/axiosInstance';
 import ConfirmModal from './common/ConfirmModal';
+import { ActionBadge } from './common/Badge';
 
 // currentProgress 열거형 값과 단계 이름 매핑
 const PROGRESS_STAGE_MAP = {
@@ -811,7 +812,11 @@ const ProjectStageProgress = ({
             </StageNavigation>
             {(isAdmin || isDeveloperManager)  && (
               <ManageButtonContainer ref={menuRef}>
-                <ManageButton onClick={() => setShowMenu(!showMenu)}>
+                <ManageButton
+                  type="success"
+                  size="large"
+                  onClick={() => setShowMenu(!showMenu)}
+                >
                   <FaEllipsisV /> 단계 관리
                 </ManageButton>
                 {showMenu && (
@@ -967,6 +972,8 @@ const ProjectStageProgress = ({
                         (progressPercent === 100 && (isAdmin || isClient))) {
                       return (
                         <IncreaseProgressButton 
+                          type="success"
+                          size="medium"
                           onClick={() => setShowConfirmModal(true)}
                           disabled={isIncreasing || !currentProgress}
                           style={{ 
@@ -1091,24 +1098,12 @@ const ManageButtonContainer = styled.div`
   }
 `;
 
-const ManageButton = styled.button`
+const ManageButton = styled(ActionBadge)`
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  background-color: #2E7D32;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.2s;
   white-space: nowrap;
 
-  &:hover {
-    background-color: #2E7D32;
-  }
-  
   @media (max-width: 768px) {
     padding: 6px 10px;
     font-size: 13px;
@@ -1152,26 +1147,12 @@ const DropdownItem = styled.button`
   }
 `;
 
-const IncreaseProgressButton = styled.button`
+const IncreaseProgressButton = styled(ActionBadge)`
   margin-top: 12px;
-  padding: 8px 16px;
-  background-color: #2E7D32;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover:not(:disabled) {
-    background-color: #1B5E20;
-  }
-
-  &:disabled {
-    background-color: #A5D6A7;
-    cursor: not-allowed;
-  }
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 100px;
 `;
 
 const StageNavigation = styled.div`

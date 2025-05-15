@@ -558,7 +558,7 @@ const DashboardAdmin = () => {
           const normalizedProgress = normalizeProgress(project.currentProgress);
           return !project.deleted && (normalizedProgress === 'COMPLETED' || normalizedProgress === '완료');
         }).length;
-        
+
         // 프로젝트 단계별 통계 계산
         const progressCounts = {
           REQUIREMENTS: activeProjects.filter(p => !p.deleted && normalizeProgress(p.currentProgress) === '요구사항 정의').length,
@@ -567,7 +567,10 @@ const DashboardAdmin = () => {
           PUBLISHING: activeProjects.filter(p => !p.deleted && normalizeProgress(p.currentProgress) === '퍼블리싱').length,
           DEVELOPMENT: activeProjects.filter(p => !p.deleted && normalizeProgress(p.currentProgress) === '개발').length,
           INSPECTION: activeProjects.filter(p => !p.deleted && normalizeProgress(p.currentProgress) === '검수').length,
-          COMPLETED: activeProjects.filter(p => !p.deleted && (normalizeProgress(p.currentProgress) === 'COMPLETED' || normalizeProgress(p.currentProgress) === '완료')).length,
+          COMPLETED: activeProjects.filter(p => {
+            const normalizedProgress = normalizeProgress(p.currentProgress);
+            return !p.deleted && (normalizedProgress === 'COMPLETED' || normalizedProgress === '완료');
+          }).length,
           OTHER: activeProjects.filter(p => {
             const normalizedProgress = normalizeProgress(p.currentProgress);
             return !p.deleted && !validStages.includes(normalizedProgress);
@@ -613,13 +616,14 @@ const DashboardAdmin = () => {
             }
           }
 
-          // 완료된 프로젝트 통계 (projectFeePaidDate 기준)
-          if (project.projectFeePaidDate) {
-            const paidDate = new Date(project.projectFeePaidDate);
-            if (paidDate.getFullYear() === currentYear) {
-              if (paidDate.getMonth() === currentMonth) {
+          // 완료된 프로젝트 통계 (currentProgress가 COMPLETED인 경우)
+          const normalizedProgress = normalizeProgress(project.currentProgress);
+          if (normalizedProgress === 'COMPLETED' || normalizedProgress === '완료') {
+            const completedDate = new Date(project.projectFeePaidDate || project.endDate);
+            if (completedDate.getFullYear() === currentYear) {
+              if (completedDate.getMonth() === currentMonth) {
                 monthlyCompletedProjects[1]++; // 이번 달
-              } else if (paidDate.getMonth() === currentMonth - 1) {
+              } else if (completedDate.getMonth() === currentMonth - 1) {
                 monthlyCompletedProjects[0]++; // 저번 달
               }
             }
@@ -676,14 +680,16 @@ const DashboardAdmin = () => {
           filteredProjects = allProjects.filter(project => !project.deleted);
           break;
         case '진행중인 프로젝트':
-          filteredProjects = allProjects.filter(project => 
-            !project.deleted && project.currentProgress !== 'COMPLETED' && project.currentProgress !== '완료'
-          );
+          filteredProjects = allProjects.filter(project => {
+            const normalizedProgress = normalizeProgress(project.currentProgress);
+            return !project.deleted && normalizedProgress !== 'COMPLETED' && normalizedProgress !== '완료';
+          });
           break;
         case '완료된 프로젝트':
-          filteredProjects = allProjects.filter(project => 
-            !project.deleted && (project.currentProgress === 'COMPLETED' || project.currentProgress === '완료')
-          );
+          filteredProjects = allProjects.filter(project => {
+            const normalizedProgress = normalizeProgress(project.currentProgress);
+            return !project.deleted && (normalizedProgress === 'COMPLETED' || normalizedProgress === '완료');
+          });
           break;
         default:
           filteredProjects = [];
