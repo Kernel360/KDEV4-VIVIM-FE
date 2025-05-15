@@ -1111,7 +1111,16 @@ const ApprovalDecision = ({ approvalId, statusSummary }) => {
   };
 
   const getStatusText = (status) => {
-    return getApproverStatusText(status);
+    switch (status) {
+      case ApprovalDecisionStatus.APPROVED:
+        return '승인됨';
+      case ApprovalDecisionStatus.REJECTED:
+        return '반려됨';
+      case ApprovalDecisionStatus.UNDER_REVIEW:
+        return '검토중';
+      default:
+        return '미정';
+    }
   };
 
   const formatDate = (dateString) => {
