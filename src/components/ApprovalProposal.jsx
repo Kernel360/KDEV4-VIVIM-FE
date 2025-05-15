@@ -1651,7 +1651,7 @@ const ApprovalProposal = ({
                         </HeaderLeft>
                         <HeaderRight>
                           {proposal.approvalProposalStatus !== 'FINAL_APPROVED' && 
-                           !isPreviousStage() && (
+                           !isPreviousStage() && canSendProposal() && (
                             <ActionIcons>
                               <ActionIcon className="delete" onClick={(e) => handleDeleteClick(e, proposal.id)} title="삭제">
                                 <FaTimes />
