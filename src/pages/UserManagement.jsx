@@ -475,14 +475,13 @@ const UserManagement = () => {
                         </StatusBadge>
                       </TableCell>
                       <TableCell $nowrap>
-                        {!user.isDeleted && (
+                        {!user.isDeleted && user.companyRole !== 'ADMIN' && (
                           <ActionButtonContainer onClick={(e) => e.stopPropagation()}>
                             <ActionBadge 
                               type="primary" 
                               size="medium" 
                               onClick={(e) => {
                                 e.stopPropagation();
-                                console.log('Edit button clicked for user:', user.id);
                                 handleRowClick(user.id);
                               }}
                             >
