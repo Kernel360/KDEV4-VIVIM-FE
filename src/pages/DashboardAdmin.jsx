@@ -545,7 +545,7 @@ const DashboardAdmin = () => {
         
         // 프로젝트 단계별 통계 계산
         const progressCounts = {
-          REQUIREMENTS: activeProjects.filter(p => !p.deleted && p.currentProgress === '요구사항 정의').length,
+          REQUIREMENTS: activeProjects.filter(p => !p.deleted && p.currentProgress === '요구사항정의').length,
           WIREFRAME: activeProjects.filter(p => !p.deleted && p.currentProgress === '화면설계').length,
           DESIGN: activeProjects.filter(p => !p.deleted && p.currentProgress === '디자인').length,
           PUBLISHING: activeProjects.filter(p => !p.deleted && p.currentProgress === '퍼블리싱').length,
@@ -710,7 +710,7 @@ const DashboardAdmin = () => {
   const handleChartClick = (elements) => {
     if (elements.length > 0) {
       const index = elements[0].index;
-      const labels = ['요구사항 정의', '화면설계', '디자인', '퍼블리싱', '개발', '검수', '완료'];
+      const labels = ['요구사항정의', '화면설계', '디자인', '퍼블리싱', '개발', '검수', '완료'];
       const selectedProgress = labels[index];
       setModalTitle(`${selectedProgress} 단계 프로젝트`);
       setShowModal(true);
