@@ -1520,7 +1520,7 @@ const ProjectStatsGrid = styled.div`
   grid-template-columns: 1fr 1fr;
   gap: 32px;
   align-items: center;
-  height: 400px;
+  height: 300px;
   width: 100%;
   overflow: hidden;
 `;
