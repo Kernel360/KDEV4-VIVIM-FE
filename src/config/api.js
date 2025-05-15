@@ -14,7 +14,7 @@ export const API_ENDPOINTS = {
   POST_FILE_UPLOAD: (Id) =>`${API_BASE_URL}/posts/${Id}/file/multipart`,
   FILE_DELETE: (fileId) => `${API_BASE_URL}/files/${fileId}`,
   LINK_DELETE: (linkId) => `${API_BASE_URL}/links/${linkId}`,
-
+ 
   // Users
   USERS: `${API_BASE_URL}/users`,
   USER_DETAIL: (id) => `${API_BASE_URL}/users/${id}`,

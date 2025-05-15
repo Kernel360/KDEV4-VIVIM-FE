@@ -311,9 +311,9 @@ const UserProjectList = () => {
         return '개발사_담당자';
       case 'DEVELOPER_USER':
         return '개발사_사용자';
-      case 'CUSTOMER_MANAGER':
+      case 'CLIENT_MANAGER':
         return '고객사_담당자';
-      case 'CUSTOMER_USER':
+      case 'CLIENT_USER':
         return '고객사_사용자';
       default:
         return role;
