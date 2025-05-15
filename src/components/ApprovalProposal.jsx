@@ -490,8 +490,8 @@ const SendButtonSmall = styled.button.attrs({
   className: 'approval-proposal-send-button-small'
 })`
   padding: 4px 8px;
-  background: white;
-  color: #2E7D32;
+  background: #2E7D32;
+  color: white;
   border: 1px solid #2E7D32;
   border-radius: 4px;
   font-size: 12px;
@@ -499,8 +499,8 @@ const SendButtonSmall = styled.button.attrs({
   transition: all 0.2s;
 
   &:hover {
-    background: #f0f9f0;
-    color: #1B5E20;
+    background: #1B5E20;
+    color: white;
     border-color: #1B5E20;
   }
 `;
@@ -833,11 +833,11 @@ const EditApproversModal = ({ isOpen, onClose, onSave, projectId, approvalId, pr
         { withCredentials: true }
       );
     } catch (error) {
-      alert('승인권자 수정에 실패했습니다.');
+      alert('승인권자 지정에 실패했습니다.');
       return;
     }
 
-    alert('승인권자가 성공적으로 수정되었습니다.');
+    alert('승인권자가 성공적으로 지정되었습니다.');
     onClose();
     onSave();
     setIsSaving(false);
@@ -847,7 +847,7 @@ const EditApproversModal = ({ isOpen, onClose, onSave, projectId, approvalId, pr
     <ModalOverlay onClick={onClose}>
       <ModalContainer onClick={e => e.stopPropagation()}>
         <ModalHeader>
-          <ModalTitle>승인권자 수정</ModalTitle>
+          <ModalTitle>승인권자 지정</ModalTitle>
           <CloseButton onClick={onClose}>×</CloseButton>
         </ModalHeader>
         <ModalContent>
@@ -883,7 +883,7 @@ const EditApproversModal = ({ isOpen, onClose, onSave, projectId, approvalId, pr
                             padding: '2px 6px',
                             borderRadius: '4px'
                           }}>
-                            변경됨
+                            지정됨
                           </span>
                         )}
                       </div>

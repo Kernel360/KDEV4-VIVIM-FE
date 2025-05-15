@@ -1019,12 +1019,11 @@ const ApprovalDetail = () => {
       }
 
       await fetchApprovers();
-      
       setIsApproversModalOpen(false);
       alert('승인권자가 성공적으로 저장되었습니다.');
     } catch (error) {
+      console.error('승인권자 저장 중 오류:', error);
       if (error.response?.status !== 403) {
-        console.error('승인권자 저장 중 오류:', error);
         alert('승인권자 저장에 실패했습니다: ' + (error.response?.data?.message || error.message));
       }
     }
@@ -1621,7 +1620,13 @@ const ApprovalDetail = () => {
                                 <ApprovalActionButton 
                                   $secondary
                                   onClick={handleOpenEditApprovers}
-                                  style={{ padding: '4px 8px', fontSize: '13px' }}
+                                  style={{ 
+                                    padding: '4px 8px', 
+                                    fontSize: '13px',
+                                    backgroundColor: '#2E7D32',
+                                    color: 'white',
+                                    border: 'none'
+                                  }}
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -1629,7 +1634,7 @@ const ApprovalDetail = () => {
                                     <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                                     <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                                   </svg>
-                                  승인권자 수정
+                                  승인권자 지정
                                 </ApprovalActionButton>
                               )}
                             </ApproversHeader>
