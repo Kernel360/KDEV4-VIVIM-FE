@@ -772,7 +772,7 @@ const ApprovalDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const isDeveloper = user?.projectUserManagerRole === 'DEVELOPER';
+  const isDeveloper = user?.companyRole === 'ADMIN' || user?.companyRole === 'DEVELOPER';
   const [proposal, setProposal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -1616,7 +1616,7 @@ const ApprovalDetail = () => {
                           <ApproversSection>
                             <ApproversHeader>
                               <ApproversTitle>승인권자 목록</ApproversTitle>
-                              {proposal.approvalProposalStatus === ApprovalProposalStatus.DRAFT && (
+                              {proposal.approvalProposalStatus === ApprovalProposalStatus.DRAFT && isDeveloper && (
                                 <ApprovalActionButton 
                                   $secondary
                                   onClick={handleOpenEditApprovers}

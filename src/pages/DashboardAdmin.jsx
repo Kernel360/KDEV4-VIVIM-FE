@@ -567,10 +567,12 @@ const DashboardAdmin = () => {
           PUBLISHING: activeProjects.filter(p => !p.deleted && normalizeProgress(p.currentProgress) === '퍼블리싱').length,
           DEVELOPMENT: activeProjects.filter(p => !p.deleted && normalizeProgress(p.currentProgress) === '개발').length,
           INSPECTION: activeProjects.filter(p => !p.deleted && normalizeProgress(p.currentProgress) === '검수').length,
+
           COMPLETED: activeProjects.filter(p => {
             const normalizedProgress = normalizeProgress(p.currentProgress);
             return !p.deleted && (normalizedProgress === 'COMPLETED' || normalizedProgress === '완료');
           }).length,
+
           OTHER: activeProjects.filter(p => {
             const normalizedProgress = normalizeProgress(p.currentProgress);
             return !p.deleted && !validStages.includes(normalizedProgress);
